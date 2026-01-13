@@ -32,6 +32,7 @@ def prep_chem(xmlFile, expdir, do_ensemble=False, do_spinup=False):
     task_id = f'{meta_id}_#group#'
     dcTaskEnv['CHEM_GROUP'] = '#group#'
     dcTaskEnv['ANTHRO_EMISINV'] = 'GRA2PES'
+    dcTaskEnv['EBB_DCYCLE'] = os.getenv('EBB_DCYCLE', 0)
     #
     chem_groups = os.getenv('CHEM_GROUPS', 'smoke').replace(',', ' ')
     meta_bgn = f'''
@@ -39,7 +40,10 @@ def prep_chem(xmlFile, expdir, do_ensemble=False, do_spinup=False):
 <var name="group">{chem_groups}</var>'''
     meta_end = f'</metatask>\n'
 
-    dcTaskEnv['KEEPDATA'] = get_cascade_env(f"KEEPDATA_{task_id}".upper()).upper()
+    if "anthro" in chem_groups:
+       dcTaskEnv['KEEPDATA'] = 'YES'
+    else:
+       dcTaskEnv['KEEPDATA'] = get_cascade_env(f"KEEPDATA_{task_id}".upper()).upper()
     # dependencies
     timedep = ''
     if realtime.upper() == "TRUE":

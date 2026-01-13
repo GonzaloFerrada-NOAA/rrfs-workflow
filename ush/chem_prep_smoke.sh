@@ -45,9 +45,11 @@ do
   if [[ -r "${EMISFILE2}" ]]; then
     ncrename -v PM25,e_bb_in_smoke_fine "${EMISFILE2}"
     ncrename -v FRP_MEAN,frp_in -v FRE,fre_in "${EMISFILE2}"
-    ncrename -v SO2,e_bb_in_so2 -v NH3,e_bb_in_nh3 "${EMISFILE2}"
+    ncrename -v SO2,e_bb_in_so2 "${EMISFILE2}"
     ncrename -v CH4,e_bb_in_ch4 "${EMISFILE2}"
     ncrename -v PM10,e_bb_in_smoke_coarse "${EMISFILE2}"
+    ncrename -v CO,e_bb_in_co "${EMISFILE2}"
+    ncrename -v NH3,e_bb_in_nh3 "${EMISFILE2}"
     ln -sf "${EMISFILE2}" "${EMISFILE}"
   else
     dummyRAVE=${FIXrrfs}/chemistry/RAVE/RAVE.dummy.${MESH_NAME}.nc

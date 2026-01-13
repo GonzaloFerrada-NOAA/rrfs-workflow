@@ -14,7 +14,8 @@
 # 1. CHEM_GROUP    -- which chem emission group is this task performing? (anthro, pollen, dust)
 # 2. ANTHRO_EMISINV            -- undecided, may merge for custom dataset, or leave option to combine
 # 3. CHEM_INPUT             -- location of interpolated files, ready to be used
-# 4. MESH_NAME                -- name of the MPAS domain, required to know if we have weights or data intepolated to the domain 
+# 4. MESH_NAME                -- name of the MPAS domain, required to know if we have weights or data intepolated to the domain
+# TEST COMMIT
 #
 # shellcheck disable=SC1091,SC2153,SC2154,SC2034
 declare -rx PS4='+ $(basename ${BASH_SOURCE[0]:-${FUNCNAME[0]:-"Unknown"}})[${LINENO}]: '
@@ -86,11 +87,14 @@ DOY_END=$(date -d "${CDATE:0:8} ${CDATE:8:2} + ${my_fcst_length} hours" +%j)  # 
 # Set the init/mesh file name and link here:\
 if [[ -r "${UMBRELLA_PREP_IC_DATA}"/init.nc ]]; then
    ln -sf "${UMBRELLA_PREP_IC_DATA}"/init.nc init.nc
-   INIT_FILE=./${MESH_NAME}.init.nc
+   INIT_FILE=./init.nc
+elif [[ -r "${UMBRELLA_PREP_IC_DATA}"/mpasout.nc ]]; then
+   ln -sf "${UMBRELLA_PREP_IC_DATA}"/mpasout.nc init.nc
+   INIT_FILE=./init.nc
 else
-   echo "WARNING: NO Init File available, cannot reinterpolate if files are missing, did you run the task out of order?"
+   echo "FATAL: NO Init File available, cannot reinterpolate if files are missing, did you run the task out of order?"
+   err_exit
 fi
-
 #
 SCRIPT=${USHrrfs}/chem_regrid.py
 VINTERP_SCRIPT=${USHrrfs}/chem_vinterp.py

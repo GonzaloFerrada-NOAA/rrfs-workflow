@@ -53,8 +53,8 @@ if [[ -r ${EMISFILE_BASE_RAW1} ]] && [[ -r ${EMISFILE_BASE_RAW2} ]]; then
      echo "ERROR: Did not interpolate ${ANTHRO_EMISINV}"
      exit 1
   else
-     ncpdq -O -a Time,nCells,nkemit "${EMISFILE1}" "${EMISFILE1}"
-     ncpdq -O -a Time,nCells,nkemit "${EMISFILE2}" "${EMISFILE2}"
+     ncpdq -O -a Time,nCells,nkanthro "${EMISFILE1}" "${EMISFILE1}"
+     ncpdq -O -a Time,nCells,nkanthro "${EMISFILE2}" "${EMISFILE2}"
      ncks -O --mk_rec_dmn Time "${EMISFILE1}" "${EMISFILE1}"
      ncks -O --mk_rec_dmn Time "${EMISFILE2}" "${EMISFILE2}"
      ncks -O -6  "${EMISFILE1}" "${EMISFILE1}"
@@ -89,13 +89,13 @@ if [[ -r ${EMISFILE_BASE_RAW1} ]] && [[ -r ${EMISFILE_BASE_RAW2} ]]; then
             echo "Reordering dimensions -- cell x level x time -- >  Time x Cell x Level "
             ncks -d Time,${t_ix},${t_ix} "${EMISFILE}" "${EMISFILE_FINAL}"
             echo "Created file #${ihour}/${my_fcst_length} at ${EMISFILE_FINAL}"
-            ncrename -v PM25-PRI,e_ant_in_unspc_fine -v PM10-PRI,e_ant_in_unspc_coarse "${EMISFILE_FINAL}"
+            ncrename -v PM25-PRI,e_ant_in_unspc_fine "${EMISFILE_FINAL}"
+	    ncrename -v PM10-PRI,e_ant_in_unspc_coarse "${EMISFILE_FINAL}"
             ncrename -v HC01,e_ant_in_ch4 "${EMISFILE_FINAL}"
-          # TODO, other species
-            ncap2 -O -s 'e_ant_in_smoke_fine=0.0*e_ant_in_unspc_fine' "${EMISFILE_FINAL}" "${EMISFILE_FINAL}"
-            ncap2 -O -s 'e_ant_in_smoke_coarse=0.0*e_ant_in_unspc_fine' "${EMISFILE_FINAL}" "${EMISFILE_FINAL}"
-            ncap2 -O -s 'e_ant_in_dust_fine=0.0*e_ant_in_unspc_fine' "${EMISFILE_FINAL}" "${EMISFILE_FINAL}"
-            ncap2 -O -s 'e_ant_in_dust_coarse=0.0*e_ant_in_unspc_fine' "${EMISFILE_FINAL}" "${EMISFILE_FINAL}"
+	    ncrename -v CO,e_ant_in_co "${EMISFILE_FINAL}"
+	    ncrename -v NH3,e_ant_in_nh3 "${EMISFILE_FINAL}"
+	    ncrename -v NOX,e_ant_in_nox "${EMISFILE_FINAL}"
+	    ncrename -v SO2,e_ant_in_so2 "${EMISFILE_FINAL}"
             ln -sf "${EMISFILE_FINAL}" "${LINKEDEMISFILE}"
          fi
      done

@@ -19,7 +19,11 @@ export RETRO_CYCLETHROTTLE=1
 #
 # ---------------------------------------------
 export CHEM_GROUPS="smoke" # any combinations of "smoke, anthro, pollen, dust, rwc"
-export EBB_DCYCLE=1
+export EBB_DCYCLE=-1
+#
+export CONFIG_COARSE=false
+export CONFIG_ULTRAFINE=false
+#
 export USE_EXTERNAL_CHEM_LBCS=true
 export USE_EXTERNAL_CHEM_ICS=false
 #
@@ -32,7 +36,7 @@ case ${MACHINE} in
   "hera")
     export CHEM_INPUT="/scratch4/BMC/acomp/cheMPAS-Fire/input"
     export RAVE_INPUT="${CHEM_INPUT}/emissions/RAVE/raw"
-    export REGRID_WRAPPER_DIR="/scratch4/BMC/acomp/Sudheer/Fire-nest/RRFS-SD/Tools/regrid-wrapper"
+    export REGRID_WRAPPER_DIR="/scratch4/BMC/acomp/Sudheer/Fire-nest/RRFS-SD/Tools/regrid-wrapper_aeroV0"
     export REGRID_CONDA_ENV="/scratch3/BMC/acomp/Sudheer/anaconda3/envs/regrid-wrapper"
     export ACCOUNT=${ACCOUNT:-"acomp"}
     export PARTITION_PREP_CHEM="hera"
@@ -46,7 +50,7 @@ case ${MACHINE} in
   "ursa")
     export CHEM_INPUT="/scratch4/BMC/acomp/cheMPAS-Fire/input"
     export RAVE_INPUT="${CHEM_INPUT}/emissions/RAVE/raw"
-    export REGRID_WRAPPER_DIR="/scratch4/BMC/acomp/Sudheer/Fire-nest/RRFS-SD/Tools/regrid-wrapper"
+    export REGRID_WRAPPER_DIR="/scratch4/BMC/acomp/Sudheer/Fire-nest/RRFS-SD/Tools/regrid-wrapper_aeroV0"
     export REGRID_CONDA_ENV="/scratch4/BMC/acomp/Sudheer/anaconda3Ursa/envs/regrid-wrapper"
     export ACCOUNT=${ACCOUNT:-"acomp"}
     export PARTITION_PREP_CHEM="u1-compute"
@@ -79,7 +83,7 @@ case ${MACHINE} in
   "gaeac6")
     export CHEM_INPUT="/gpfs/f6/drsa-fire3/world-shared/cheMPAS-Fire/input"
     export RAVE_INPUT="${CHEM_INPUT}/emissions/RAVE/raw"
-    export REGRID_WRAPPER_DIR="/gpfs/f6/drsa-fire3/world-shared/Sudheer/MPAS/Tools/regrid-wrapper/"
+    export REGRID_WRAPPER_DIR="/gpfs/f6/drsa-fire3/world-shared/Sudheer/MPAS/Tools/regrid-wrapper_aeroV0/"
     export REGRID_CONDA_ENV="/gpfs/f6/drsa-fire3/world-shared/Sudheer/anaconda3/envs/regrid-wrapper/"
     export NODES_PREP_CHEM="<nodes>1:ppn=1</nodes>"
     export MEMORY_PREP_CHEM="200G"

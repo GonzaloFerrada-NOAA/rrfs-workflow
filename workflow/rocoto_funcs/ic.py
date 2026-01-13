@@ -20,6 +20,7 @@ def ic(xmlFile, expdir, do_ensemble=False):
     if os.getenv('DO_CHEMISTRY', 'FALSE').upper() == "TRUE":
         dcTaskEnv['USE_EXTERNAL_CHEM'] = os.getenv('USE_EXTERNAL_CHEM_ICS', 'FALSE').upper()
         dcTaskEnv['CHEM_GROUPS'] = os.getenv('CHEM_GROUPS', 'smoke')
+        dcTaskEnv['RETRO_CYCLETHROTTLE'] = os.getenv('RETRO_CYCLETHROTTLE',-1)
 
     if not do_ensemble:
         metatask = False
