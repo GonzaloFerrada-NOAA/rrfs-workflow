@@ -236,17 +236,19 @@ class RaveToMpasRegridContext(BaseModel):
                     "time_size": self.time_size,
                     "num_cells": self.num_cells,
                 }
-                if field_name in ("clayfrac", "sandfrac", "uthres_sg", "uthres", "sep"):
+                if field_name in ("clayfrac", "sandfrac", "uthres", "ssm"):
                     app = RaveField1d.model_validate(init_data)
                 elif field_name in ("FRE", "FRP_MEAN", "RWC_denominator", "ecoregion_ID", "10h_dead_fuel_moisture_content"):
                     app = RaveField2d.model_validate(init_data)
                 elif field_name in ("DBL_POLL", "ENL_POLL", "GRA_POLL", "RAG_POLL"):
                     app = RaveField3d.model_validate(init_data)
-                elif self.dataset_name == 'NEMO' and field_name in ("PEC", "POC", "PMOTHR", "PMC"):
+                elif self.dataset_name == 'NEMO_RWC' and field_name in ("PEC", "POC", "PMOTHR", "PMC"):
+                    app = RaveField3d.model_validate(init_data)
+                elif self.dataset_name == 'NEMO_ANTHRO' and field_name in ("PEC", "POC", "PMOTHR", "PMC"):
                     app = RaveField3d.model_validate(init_data)
                 elif self.dataset_name == 'RAVE' and field_name in ("PM25", "NH3", "SO2", "TPM", "NOx", "CH4","CO"):
                     app = RaveField3d.model_validate(init_data)
-                elif field_name in ("albedo_drag", "feff", "LAI", "GVF", "PC", "fveg", "fbare", "lcbare", "lcveg"):
+                elif field_name in ("rdrag",):
                     app = RaveField2d_plusTime.model_validate(init_data)
 # GRAPES anthro data - 12 x 20 x lat x lon --> (latXlon) x (level) x (time) -----(then, back in the shell script)----> Time x nCells x nkemit
                 elif self.dataset_name == 'GRA2PES' and field_name in ("HC01", "PM25-PRI", "PM10-PRI", "h_agl","SO2","NH3","NOX","CO"):
@@ -427,7 +429,7 @@ class RaveToMpasRegridProcessor:
                     if self.context.dataset_name in ("RAVE"):
                         for varname in ("latCell", "lonCell", "areaCell", "xland", "xtime"):
                             copy_nc_variable(src_nc, dst_nc, varname, copy_data=True)
-                    elif self.context.dataset_name in ("FENGSHA_1"):
+                    elif self.context.dataset_name in ("FENGSHA_2D"):
                         for varname in ("latCell", "lonCell"):
                             copy_nc_variable(src_nc, dst_nc, varname, copy_data=True)
                     else:
@@ -631,7 +633,7 @@ class RaveToMpasRegridProcessor:
                     dim_level=(self.context.level_in_name,),
                 ).create_field_wrapper()
 
-        elif field_name in ("clayfrac", "sandfrac", "uthres", "uthres_sg", "sep"):
+        elif field_name in ("clayfrac", "sandfrac", "uthres", "ssm"):
             src_fwrap = NcToField(
                 path=self.context.src_path,
                 name=field_name,
@@ -647,7 +649,7 @@ class RaveToMpasRegridProcessor:
                 dim_time=(self.context.time_name,),
             ).create_field_wrapper()
         # Get the area from the RAVE file, need to convert from /grid to /m2
-        if self.context.dataset_name == "RAVE" and field_name in ("PM25", "NH3", "SO2", "FRE", "FRP_MEAN", "TPM", "CH4", "CO", "NOx"):
+        if (self.context.dataset_name == "RAVE" and field_name in ("PM25", "NH3", "SO2", "FRE", "FRP_MEAN", "TPM", "CH4", "CO", "NOx")):
             area_fwrap = NcToField(
                 path=self.context.src_path,
                 name='area',
@@ -674,6 +676,12 @@ class RaveToMpasRegridProcessor:
                 conv_aer = ( (1.0 / 30.0) + (1.0 / 46.0) ) / 2. * 1000. 
             else:
                 conv_aer = 1.0
+        elif self.context.dataset_name == "NEMO_RWC" and field_name in ("PEC","POC","PMOTHR","PMC"):
+            # Convert g/s/km2 (on 1km grid) to ug/m2/s -->
+            conv_aer = 1.0 
+        elif self.context.dataset_name == "NEMO_ANTHRO" and field_name in ("PEC","POC","PMOTHR","PMC"):
+            # Convert g/s/km2 to ug/m2/s --> 
+            conv_aer = 1.0 
         else:
             conv_aer = 1.0
 
@@ -803,7 +811,24 @@ def main() -> None:
         time_size = 12
         InterpMethod = "CONSERVE"
         # InterpMethod = "BILINEAR"
-    elif dataset_name == "NEMO":
+    elif dataset_name == "NEMO_ANTHRO":
+        field_names = ("POC", "PEC", "PMOTHR", "PMC")
+        x_center = "lon"
+        y_center = "lat"
+        x_dim = "COL"
+        y_dim = "ROW"
+        x_corner = "lonc"
+        y_corner = "latc"
+        x_corner_dim = "COLC"
+        y_corner_dim = "ROWC"
+        level_in_name = "None"
+        level_out_name = "nkanthro"
+        level_out_size = 1
+        time_name = "Time"
+        time_size = 1
+        InterpMethod = "CONSERVE"
+#       InterpMethod = "BILINEAR"
+    elif dataset_name == "NEMO_RWC":
         field_names = ("POC", "PEC", "PMOTHR", "PMC")
         x_center = "lon"
         y_center = "lat"
@@ -868,10 +893,10 @@ def main() -> None:
         time_name = "Time"
         time_size = 1
         InterpMethod = "BILINEAR"
-    elif dataset_name == "FENGSHA_1":
-        field_names = ("clayfrac", "sandfrac", "uthres", "uthres_sg", "sep")
-        x_center = "lon2d"
-        y_center = "lat2d"
+    elif dataset_name == "FENGSHA_2D":
+        field_names = ("clayfrac", "sandfrac", "uthres", "ssm")
+        x_center = "longitude"
+        y_center = "latitude"
         x_dim = "lon"
         y_dim = "lat"
         x_corner = None
@@ -884,10 +909,10 @@ def main() -> None:
         time_name = "time"
         time_size = 0
         InterpMethod = "BILINEAR"
-    elif dataset_name == "FENGSHA_2":
-        field_names = ("feff",)
-        x_center = "lon2d"
-        y_center = "lat2d"
+    elif dataset_name == "FENGSHA_2D_Time":
+        field_names = ("rdrag",)
+        x_center = "longitude"
+        y_center = "latitude"
         x_dim = "lon"
         y_dim = "lat"
         x_corner = None
@@ -1105,21 +1130,24 @@ def main() -> None:
         if dataset_name == "PECM":
             rave_path = Path(input_dir + "/pollen_obs_" + YYYY + "_BELD6_ef_T_" + JJJ + ".nc")
             new_dst_path = Path(output_dir + "/pollen_ef_" + mesh_name + "_" + YYYY + "_" + JJJ + ".nc")
-        elif dataset_name == "NEMO":
+        elif dataset_name == "NEMO_RWC":
             rave_path = Path(input_dir + "/NEMO_RWC_POC_PEC_PMOTHR.annual.2017.nc")
             new_dst_path = Path(output_dir + "/NEMO_RWC_ANNUAL_TOTAL_" + mesh_name + ".nc")
+        elif dataset_name == "NEMO_ANTHRO":
+            rave_path = Path(input_dir + "/emis_mole_all_2017"+MM+"_US01_cmaq_cb6ae7_2017gb_17j_mean.ncf")
+            new_dst_path = Path(output_dir + "/NEMO_ANTHRO_" + mesh_name + ".nc")
         elif dataset_name == "NARR":
             rave_path = Path(input_dir + "/rwc_emission_denominator.2017.nc")
             new_dst_path = Path(output_dir + "/NEMO_RWC_DENOMINATOR_2017_" + mesh_name + ".nc")
         elif dataset_name == "ECOREGION":
             rave_path = Path(input_dir + "/veg_map.nc")
             new_dst_path = Path(output_dir + "/ecoregions_" + mesh_name + "_mpas.nc")
-        elif dataset_name == "FENGSHA_1":
-            rave_path = Path(input_dir + "/FENGSHA_2022_NESDIS_inputs_10km_v3.2.nc")
-            new_dst_path = Path(output_dir + "/FENGSHA_2022_NESDIS_inputs_" + mesh_name + "_v3.2.nc")
-        elif dataset_name == "FENGSHA_2":
-            rave_path = Path(input_dir + "/LAI_GVF_PC_DRAG_CLIMATOLOGY_2024v1.0.nc4")
-            new_dst_path = Path(output_dir + "/LAI_GVF_PC_DRAG_CLIMATOLOGY_2024v1.0." + mesh_name + ".nc")
+        elif dataset_name == "FENGSHA_2D":
+            rave_path = Path(input_dir + "/FENGSHA_RRFS_NA_3km_2026_2D.nc")
+            new_dst_path = Path(output_dir + "/fengsha_dust_inputs.2D."+ mesh_name + ".nc")
+        elif dataset_name == "FENGSHA_2D_Time":
+            rave_path = Path(input_dir + "/FENGSHA_RRFS_NA_3km_2026_2D_Time.nc")
+            new_dst_path = Path(output_dir + "/fengsha_dust_inputs.2D_Time."+ mesh_name + ".nc")
 
         context = RaveToMpasRegridContext(
             dataset_name=dataset_name,

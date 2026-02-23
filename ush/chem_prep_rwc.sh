@@ -19,7 +19,7 @@ EMISFILE_RWC_PROCESSED=${OUTPUTDIR}/NEMO_RWC_ANNUAL_TOTAL_${MESH_NAME}.nc
 #
 if [[ ! -r "${EMISFILE_RWC_PROCESSED}" ]]; then
    srun python -u "${SCRIPT}" \
-                    "NEMO" \
+                    "NEMO_RWC" \
                     "${DATA}" \
                     "${INPUTDIR}" \
                     "${OUTPUTDIR}" \
@@ -30,9 +30,9 @@ if [[ ! -r "${EMISFILE_RWC_PROCESSED}" ]]; then
    # Convert to how we want it
    ncap2 -O -s 'RWC_annual_sum=PEC+POC+PMOTHR' "${EMISFILE_RWC_PROCESSED}" "${EMISFILE_RWC_PROCESSED}"
    ncap2 -O -s 'RWC_annual_sum_smoke_fine=PEC+POC' "${EMISFILE_RWC_PROCESSED}"  "${EMISFILE_RWC_PROCESSED}"
-   ncap2 -O -s 'RWC_annual_sum_smoke_coarse=0*RWC_annual_sum_smoke_fine' "${EMISFILE_RWC_PROCESSED}"  "${EMISFILE_RWC_PROCESSED}"
    ncrename -v PMOTHR,RWC_annual_sum_unspc_fine "${EMISFILE_RWC_PROCESSED}"
    ncrename -v PMC,RWC_annual_sum_unspc_coarse "${EMISFILE_RWC_PROCESSED}"
+   ncap2 -O -s 'RWC_annual_sum_smoke_coarse=0.*RWC_annual_sum_unspc_coarse' "${EMISFILE_RWC_PROCESSED}" "${EMISFILE_RWC_PROCESSED}"
 fi
 
 # Regrid the summed minimum temperature equation:
