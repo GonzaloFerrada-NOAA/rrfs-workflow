@@ -963,8 +963,16 @@ def main() -> None:
             print('Reading RAVE file:', rave_paths)
             rave_path = rave_paths[0]
             new_dst_path = Path(output_dir + "/" + mesh_name + "-RAVE-" + date_to_process + ".nc")
+           
             # --- OPTIMIZATION START ---
-            if processor is None:
+            try:
+                processor
+            except NameError:
+                proc_exists = False
+            else:
+                proc_exists = True
+            if proc_exists == False:
+
                 # FIRST PASS: Full Initialization
                 # This pays the "expensive" cost of loading weights/grids, but only once.
 
@@ -1134,6 +1142,7 @@ def main() -> None:
             rave_path = Path(input_dir + "/NEMO_RWC_POC_PEC_PMOTHR.annual.2017.nc")
             new_dst_path = Path(output_dir + "/NEMO_RWC_ANNUAL_TOTAL_" + mesh_name + ".nc")
         elif dataset_name == "NEMO_ANTHRO":
+            rave_path = Path(input_dir + "/NEMO_ANTHRO_" + mesh_name + "_" + YYYY + MM + DD + HH + "_SECTORSUM.nc"
             rave_path = Path(input_dir + "/emis_mole_all_2017"+MM+"_US01_cmaq_cb6ae7_2017gb_17j_mean.ncf")
             new_dst_path = Path(output_dir + "/NEMO_ANTHRO_" + mesh_name + ".nc")
         elif dataset_name == "NARR":
