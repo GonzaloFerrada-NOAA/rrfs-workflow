@@ -33,6 +33,7 @@ echo "forecast length for this cycle is ${my_fcst_length}"
 # ... Set some date variables
 #
 timestr=$(date -d "${CDATE:0:8} ${CDATE:8:2}" +%Y-%m-%d_%H.%M.%S)
+JJJ=$(date -d "${CDATE:0:8} ${CDATE:8:2}" +%j)
 YYYY=$(date -d "${CDATE:0:8} ${CDATE:8:2}" +%Y)
 MM=$(date -d "${CDATE:0:8} ${CDATE:8:2}" +%m)
 DD=$(date -d "${CDATE:0:8} ${CDATE:8:2}" +%d)

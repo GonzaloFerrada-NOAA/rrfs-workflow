@@ -44,18 +44,28 @@ save_nullglob=$(shopt -p nullglob)
 shopt -s nullglob
 
 # Anthropogenic
+if [[ "${CHEM_GROUPS,,}" == *anthro* ]]; then
 files=("${UMBRELLA_PREP_CHEM_DATA}"/anthro.init*)
 if (( ${#files[@]}  )); then  # at least one file exists
   sed -i "\$e cat ${PARMrrfs}/chemistry/streams.atmosphere.anthro" streams.atmosphere
   ln -snf "${UMBRELLA_PREP_CHEM_DATA}"/anthro.init* ./
-  #
-  if [[ "${CHEM_GROUPS,,}" == *anthro* ]]; then
-     sed -i "s/config_anthro_scheme\s*=\s*'off'/config_anthro_scheme  = 'simple_aero'/g" namelist.atmosphere
-     num_chem=$(( num_chem + 1 ))
-     if [[ "${CONFIG_COARSE}" == "TRUE" ]]; then
-	num_chem=$(( num_chem + 1 ))
-     fi
+  ptfiles=("${UMBRELLA_PREP_CHEM_DATA}"/anthro_pt.*)
+  if (( ${#ptfiles[@]} )); then
+     sed -i "\$e cat ${PARMrrfs}/chemistry/streams.atmosphere.anthro_pt" streams.atmosphere
+     sed -i "s/config_anthro_pt_scheme\s*=\s*'off'/config_anthro_pt_scheme = 'on'/g" namelist.atmosphere
+     ln -snf "${UMBRELLA_PREP_CHEM_DATA}"/anthro_pt.* ./
   fi
+  for ifl in anthro*.nc 
+  do
+    ncks -O -6 ${ifl} ${ifl}
+  done
+  #
+  sed -i "s/config_anthro_scheme\s*=\s*'off'/config_anthro_scheme  = 'simple_aero'/g" namelist.atmosphere
+  num_chem=$(( num_chem + 1 ))
+  if [[ "${CONFIG_COARSE}" == "TRUE" ]]; then
+     num_chem=$(( num_chem + 1 ))
+  fi
+fi
 fi
 
 # Smoke/Wildfire

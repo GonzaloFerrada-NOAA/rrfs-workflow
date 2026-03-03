@@ -186,7 +186,7 @@ class RaveField4d(AbstractRaveField):
         )
 
     def reshape_field_data(self, target: np.ndarray) -> np.ndarray:
-        return target.reshape(-1, 20, 12)
+        return target.reshape(-1, self.level_out_size,self.time_size)
 
 
 class RaveToMpasRegridContext(BaseModel):
@@ -245,7 +245,7 @@ class RaveToMpasRegridContext(BaseModel):
                 elif self.dataset_name == 'NEMO_RWC' and field_name in ("PEC", "POC", "PMOTHR", "PMC"):
                     app = RaveField3d.model_validate(init_data)
                 elif self.dataset_name == 'NEMO_ANTHRO' and field_name in ("PEC", "POC", "PMOTHR", "PMC"):
-                    app = RaveField3d.model_validate(init_data)
+                    app = RaveField4d.model_validate(init_data)
                 elif self.dataset_name == 'RAVE' and field_name in ("PM25", "NH3", "SO2", "TPM", "NOx", "CH4","CO"):
                     app = RaveField3d.model_validate(init_data)
                 elif field_name in ("rdrag",):
@@ -632,6 +632,14 @@ class RaveToMpasRegridProcessor:
                     dim_time=(self.context.time_name,),
                     dim_level=(self.context.level_in_name,),
                 ).create_field_wrapper()
+        elif self.context.dataset_name == "NEMO_ANTHRO":
+            src_fwrap = NcToField(
+                path=self.context.src_path,
+                name=field_name,
+                gwrap=self.get_src_gwrap(),
+                dim_time=(self.context.time_name,),
+                dim_level=(self.context.level_in_name,),
+            ).create_field_wrapper()
 
         elif field_name in ("clayfrac", "sandfrac", "uthres", "ssm"):
             src_fwrap = NcToField(
@@ -821,10 +829,10 @@ def main() -> None:
         y_corner = "latc"
         x_corner_dim = "COLC"
         y_corner_dim = "ROWC"
-        level_in_name = "None"
+        level_in_name = "LAY"
         level_out_name = "nkanthro"
         level_out_size = 1
-        time_name = "Time"
+        time_name = "TSTEP"
         time_size = 1
         InterpMethod = "CONSERVE"
 #       InterpMethod = "BILINEAR"
@@ -1142,8 +1150,7 @@ def main() -> None:
             rave_path = Path(input_dir + "/NEMO_RWC_POC_PEC_PMOTHR.annual.2017.nc")
             new_dst_path = Path(output_dir + "/NEMO_RWC_ANNUAL_TOTAL_" + mesh_name + ".nc")
         elif dataset_name == "NEMO_ANTHRO":
-            rave_path = Path(input_dir + "/NEMO_ANTHRO_" + mesh_name + "_" + YYYY + MM + DD + HH + "_SECTORSUM.nc"
-            rave_path = Path(input_dir + "/emis_mole_all_2017"+MM+"_US01_cmaq_cb6ae7_2017gb_17j_mean.ncf")
+            rave_path = Path(input_dir + "/NEMO_ANTHRO_" + mesh_name + "_" + YYYY + MM + DD + HH + "_SECTORSUM.nc")
             new_dst_path = Path(output_dir + "/NEMO_ANTHRO_" + mesh_name + ".nc")
         elif dataset_name == "NARR":
             rave_path = Path(input_dir + "/rwc_emission_denominator.2017.nc")
