@@ -2,36 +2,46 @@ import sys
 import xarray as xr
 
 def main():
-    # Usage: python add_nc.py "out.nc" "var1,var2" "file1.nc" "file2.nc" ...
+    if len(sys.argv) < 4:
+        return
+
     out_file = sys.argv[1]
     var_list = sys.argv[2].split(',')
     in_files = sys.argv[3:]
 
-    running_total = None
+    print(f"Opening {len(in_files)} files...")
+    print(f"Targeting only: {var_list}")
 
-    for f in in_files:
-        # 1. Open individual file lazily
-        with xr.open_dataset(f) as ds:
-            # 2. Select only variables that actually exist in this file
-            existing_vars = [v for v in var_list if v in ds.data_vars]
-            subset = ds[existing_vars]
+    # OPTIMIZATION: 
+    # 1. 'data_vars=var_list' tells Xarray to ignore the other 96 variables entirely.
+    # 2. 'drop_variables' handles the problematic 'VAR' dimension and its members.
+    # 3. 'chunks' enables Dask, which is essential for large file performance.
+    
+    # Let's find any variable associated with 'VAR' in the first file to drop it.
+    with xr.open_dataset(in_files[0]) as ds:
+        vars_to_drop = [v for v in ds.variables if 'VAR' in ds[v].dims]
+        if 'VAR' in ds.dims:
+            vars_to_drop.append('VAR')
 
-            # 3. Add to the running total
-            if running_total is None:
-                running_total = subset
-            else:
-                # This performs an element-wise add where coordinates match
-                running_total = running_total + subset
-            ds.close()
+    ds = xr.open_mfdataset(
+        in_files,
+        combine='nested',
+        concat_dim='file_index',
+        data_vars=var_list,      # Ignore the other ~96 variables
+        drop_variables=vars_to_drop,
+        coords="minimal",        # Don't compare coordinates across all files
+        compat="override",       # Trust that lat/lon are the same
+        parallel=True,           # Use multi-threading to open files
+    )
 
-    # 4. Compute and save
-    if running_total is not None:
-        # Optional: ensure metadata is kept
-        running_total.compute().to_netcdf(out_file,engine="netcdf4", format="NETCDF4")
-        print(f"Done. Summed {len(in_files)} files into {out_file}")
-    else:
-        print("No matching variables found.")
+    print("Computing sum...")
+    # keep_attrs=True ensures you don't lose units/long_names
+    running_total = ds[var_list].sum(dim='file_index', keep_attrs=True)
+
+    print(f"Writing to {out_file}...")
+    running_total.to_netcdf(out_file)
+    
+    print("Done.")
 
 if __name__ == "__main__":
     main()
-

@@ -373,6 +373,7 @@ class RaveToMpasRegridProcessor:
                     regrid_method=esmpy.RegridMethod.CONSERVE,
                     unmapped_action=esmpy.UnmappedAction.IGNORE,
                     ignore_degenerate=True,
+                    large_file=True,
                     filename=str(self.context.weight_path),
                 )
             elif self.context.InterpMethod == "CONSERVE_2ND":
@@ -383,6 +384,7 @@ class RaveToMpasRegridProcessor:
                     regrid_method=esmpy.RegridMethod.CONSERVE_2ND,
                     unmapped_action=esmpy.UnmappedAction.IGNORE,
                     ignore_degenerate=True,
+                    large_file=True,
                     filename=str(self.context.weight_path),
                 )
             elif self.context.InterpMethod == "BILINEAR":
@@ -393,6 +395,7 @@ class RaveToMpasRegridProcessor:
                     regrid_method=esmpy.RegridMethod.BILINEAR,
                     unmapped_action=esmpy.UnmappedAction.IGNORE,
                     ignore_degenerate=True,
+                    large_file=True,
                     filename=str(self.context.weight_path),
                 )
             else:
@@ -403,6 +406,7 @@ class RaveToMpasRegridProcessor:
                     regrid_method=esmpy.RegridMethod.NEAREST_STOD,
                     unmapped_action=esmpy.UnmappedAction.IGNORE,
                     ignore_degenerate=True,
+                    large_file=True,
                     filename=str(self.context.weight_path),
                 )
 

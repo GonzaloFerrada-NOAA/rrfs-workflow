@@ -35,7 +35,7 @@ EMISFILE1_GRA2PES=${OUTDIR}/GRA2PES${GRA2PES_VERSION}_${GRA2PES_SECTOR}_${MESH_N
 EMISFILE2_GRA2PES=${OUTDIR}/GRA2PES${GRA2PES_VERSION}_${GRA2PES_SECTOR}_${MESH_NAME}_12to23Z.nc
 #
 #
-EMIS_SECTOR_NEMO=(ag airports nonpt nonroad np_oilgas othar_all rail)
+EMIS_SECTOR_NEMO=(airports nonpt nonroad np_oilgas othar_all rail) # ag will move to online
 EMIS_SECTOR_NEMO_DAYTYPE=(2 6 4 4 2 4 2)
 EMIS_SECTOR_NEMO_PT=(cmv_c1c2_12 cmv_c3_12 othpt pt_oilgas ptegu) 
 EMISFILE_NEMO=${OUTDIR}/NEMO${NEMO_VERSION}_${NEMO_SECTOR}_${MESH_NAME}_00to23Z.nc
@@ -134,7 +134,7 @@ if [[ "${ANTHRO_EMISINV}" == *NEMO* ]]; then
    fi
  # Then get the 
    YYYYMMDD_NEMO_BASE_YEAR=$(python "${HOMErrfs}/workflow/tools/chem_get_merge_date.py" ${YYYY} ${JJJ} ${NEMO_YEAR})
-   JJJ_NEMO_BASE_YEAR=`date +%j -d "${YYYYMMDD_NEMO_BASE_YEAR}"`
+   JJJ_NEMO_BASE_YEAR=`date +%-j -d "${YYYYMMDD_NEMO_BASE_YEAR}"`
    NEMO_EMISFILES_TO_CAT=()
    isect_knt=0
    for isect in "${EMIS_SECTOR_NEMO[@]}"
@@ -154,7 +154,7 @@ if [[ "${ANTHRO_EMISINV}" == *NEMO* ]]; then
    # Sum the files
    NEMO_VAR_LIST=("POC,PEC,PMOTHR,PMC")
    NEI_VAR_LIST=("LATITUDE,LONGITUDE,STKDM,STKHT,STKFLW,STKTK,STKVE")
-   srun -n 1 python "${HOMErrfs}/workflow/tools/chem_merge_emissions.py" ${EMISFILE_NEMO_SECTORSUM} ${NEMO_VAR_LIST} ${NEMO_EMISFILES_TO_CAT[*]}
+   srun -n 1 python "${HOMErrfs}/workflow/tools/chem_merge_emissions.py" ${EMISFILE_NEMO_SECTORSUM} ${NEMO_VAR_LIST} ${NEMO_EMISFILES_TO_CAT[@]}
    # Append the dims - TODO, can only append variables to dim file, not other way around ...
    mv "${EMISFILE_NEMO_SECTORSUM}" "${EMISFILE_NEMO_SECTORSUM}_tmp.nc"
    cp "${INPUT_GRID_NEMO}" "${EMISFILE_NEMO_SECTORSUM}"
@@ -183,7 +183,7 @@ if [[ "${ANTHRO_EMISINV}" == *NEMO* ]]; then
           ncrename -v PMC,e_ant_in_unspc_coarse "${EMISFILE_NEMO_PROCESSED}"
           mv "${EMISFILE_NEMO_PROCESSED}" "${EMISFILE_NEMO_PROCESSED}_${istr}.nc"
           ncks -O -4 "${EMISFILE_NEMO_PROCESSED}_${istr}.nc" "${EMISFILE_NEMO_PROCESSED}_${istr}.nc"
-          ncpdq -O -a Time,nCells,nkanthro "${EMISFILE_NEMO_PROCESSED}_${istr}.nc"
+          ncpdq -O -a Time,nCells,nkanthro "${EMISFILE_NEMO_PROCESSED}_${istr}.nc" "${EMISFILE_NEMO_PROCESSED}_${istr}.nc"
        fi
        # Remove the temporary file
        rm -f "${EMISFILE_NEMO_SECTORSUM}"

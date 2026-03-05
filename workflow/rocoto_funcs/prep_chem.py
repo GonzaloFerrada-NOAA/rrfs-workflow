@@ -52,9 +52,7 @@ def prep_chem(xmlFile, expdir, do_ensemble=False, do_spinup=False):
 
     dependencies = f'''
   <dependency>
-  <and>{timedep}
-    <taskdep task="prep_ic"/>
-  </and>
+     {timedep}
   </dependency>'''
 
     xml_task(xmlFile, expdir, task_id, cycledefs, dcTaskEnv, dependencies, metatask, meta_id, meta_bgn, meta_end, "PREP_CHEM")
