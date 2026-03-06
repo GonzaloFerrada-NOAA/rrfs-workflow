@@ -431,7 +431,7 @@ class RaveToMpasRegridProcessor:
 
                 with open_nc(self.context.dst_path, mode="r", parallel=False) as src_nc:
                     if self.context.dataset_name in ("RAVE"):
-                        for varname in ("latCell", "lonCell", "areaCell", "xland", "xtime"):
+                        for varname in ("latCell", "lonCell", "areaCell", "xtime"):
                             copy_nc_variable(src_nc, dst_nc, varname, copy_data=True)
                     elif self.context.dataset_name in ("FENGSHA_2D"):
                         for varname in ("latCell", "lonCell"):
@@ -738,7 +738,7 @@ def main() -> None:
     cycle = sys.argv[6]  # Cycle Time, YYYYMMDDHH
     mesh_name = sys.argv[7]  # Name of the domain
 
-    ebb_dcycle = os.getenv('EBB_DCYCLE')
+    ebb_dcycle = int(os.getenv('EBB_DCYCLE'))
     #
     # Test to see if scrip files exist
     # testpath = Path(weight_dir + "/scrip_files/mpas_" + mesh_name + "_scrip.nc")
