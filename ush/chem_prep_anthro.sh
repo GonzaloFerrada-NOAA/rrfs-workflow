@@ -4,16 +4,14 @@
 # TODO, if residential wood burning emissions are turned on, we need to use the
 if [[ "${CHEM_GROUPS,,}" == *rwc* ]]; then
    GRA2PES_SECTOR=total_minus_res #to not double count those emissions
-   NEMO_SECTOR=all_minus_res
 else
    GRA2PES_SECTOR=total
-   NEMO_SECTOR=all
 fi
 GRA2PES_YEAR=2021
 GRA2PES_VERSION=v1.0
 #
 NEMO_YEAR=2017
-NEMO_GRID=us01
+NEMO_GRID=US01
 NEMO_VERSION=cb6ae7_2017gb_17j
 
 
@@ -38,7 +36,6 @@ EMISFILE2_GRA2PES=${OUTDIR}/GRA2PES${GRA2PES_VERSION}_${GRA2PES_SECTOR}_${MESH_N
 EMIS_SECTOR_NEMO=(airports nonpt nonroad np_oilgas othar_all rail) # ag will move to online
 EMIS_SECTOR_NEMO_DAYTYPE=(2 6 4 4 2 4 2)
 EMIS_SECTOR_NEMO_PT=(cmv_c1c2_12 cmv_c3_12 othpt pt_oilgas ptegu) 
-EMISFILE_NEMO=${OUTDIR}/NEMO${NEMO_VERSION}_${NEMO_SECTOR}_${MESH_NAME}_00to23Z.nc
 EMIS_SECTOR_NEMO_PT_DAYTYPE=(2 2 4 2 8)
 
 # the following 2 variable are not used
@@ -131,9 +128,9 @@ if [[ "${ANTHRO_EMISINV}" == *NEMO* ]]; then
    if [[ ! -r "${MERGEDATEFILE}" ]]; then
       srun -n 1 python "${HOMErrfs}/workflow/tools/chem_create_merge_dates_ann.py" ${NEMO_YEAR}
    fi
- # Then get the 
-   YYYYMMDD_NEMO_BASE_YEAR=$(python "${HOMErrfs}/workflow/tools/chem_get_merge_date.py" ${YYYY} ${JJJ} ${NEMO_YEAR})
-   JJJ_NEMO_BASE_YEAR=`date +%-j -d "${YYYYMMDD_NEMO_BASE_YEAR}"`
+ # Then get the day of the year in the NEMO BASE YEAR (2017) that is closest to today's day of the week in the calendar postion
+   YYYYMMDD_NEMO_BASE_YEAR=$(python "${HOMErrfs}/workflow/tools/chem_get_merge_date.py" "${YYYY}" "${JJJ}" "${NEMO_YEAR}")
+   JJJ_NEMO_BASE_YEAR=$(date +%-j -d "${YYYYMMDD_NEMO_BASE_YEAR}")
    NEMO_EMISFILES_TO_CAT=()
    isect_knt=0
    for isect in "${EMIS_SECTOR_NEMO[@]}"
@@ -141,19 +138,19 @@ if [[ "${ANTHRO_EMISINV}" == *NEMO* ]]; then
       # Deterimine the type of representative days
       # The date is in the row that matches todays date and the column
       # determined by daytype
-      rowid=$((${JJJ_NEMO_BASE_YEAR} + 1 + 31)) # 1 for indexing, 31 because it includes the previous December
+      rowid=$((JJJ_NEMO_BASE_YEAR + 1 + 31)) # 1 for indexing, 31 because it includes the previous December
       colid=${EMIS_SECTOR_NEMO_DAYTYPE[${isect_knt}]}
-      testdate=`awk -F',' -v row_num=${rowid} -v col_num=$colid 'NR==row_num {gsub(/[[:blank:]]/, "", $col_num); print $col_num; exit}' ${MERGEDATEFILE}`
-      testfile=${INDIR_NEMO}/${isect}/emis_mole_${isect}_${testdate}_US01_cmaq_${NEMO_VERSION}.ncf
-      if [[ -r ${testfile} ]]; then
+      testdate=$(awk -F',' -v row_num="${rowid}" -v col_num="${colid}" 'NR==row_num {gsub(/[[:blank:]]/, "", $col_num); print $col_num; exit}' "${MERGEDATEFILE}")
+      testfile="${INDIR_NEMO}/${isect}/emis_mole_${isect}_${testdate}_${NEMO_GRID}_cmaq_${NEMO_VERSION}.ncf"
+      if [[ -r "${testfile}" ]]; then
          NEMO_EMISFILES_TO_CAT+=("${testfile}")
       fi
-      isect_knt=$((${isect_knt}+1))
+      isect_knt=$((isect_knt+1))
    done
    # Sum the files
    NEMO_VAR_LIST=("POC,PEC,PMOTHR,PMC")
    NEI_VAR_LIST=("LATITUDE,LONGITUDE,STKDM,STKHT,STKFLW,STKTK,STKVE")
-   srun -n 1 python "${HOMErrfs}/workflow/tools/chem_merge_emissions.py" ${EMISFILE_NEMO_SECTORSUM} ${NEMO_VAR_LIST} ${NEMO_EMISFILES_TO_CAT[@]}
+   srun -n 1 python "${HOMErrfs}/workflow/tools/chem_merge_emissions.py" "${EMISFILE_NEMO_SECTORSUM}" "${NEMO_VAR_LIST[@]}" "${NEMO_EMISFILES_TO_CAT[@]}"
    # Append the dims - TODO, can only append variables to dim file, not other way around ...
    mv "${EMISFILE_NEMO_SECTORSUM}" "${EMISFILE_NEMO_SECTORSUM}_tmp.nc"
    cp "${INPUT_GRID_NEMO}" "${EMISFILE_NEMO_SECTORSUM}"
@@ -167,7 +164,7 @@ if [[ "${ANTHRO_EMISINV}" == *NEMO* ]]; then
    do
        istr="${ihour}"
        # Extract 1 hour
-       ncks -d TSTEP,${ihour},${ihour} "${EMISFILE_NEMO_SECTORSUM}_total.nc" "${EMISFILE_NEMO_SECTORSUM}"
+       ncks -d TSTEP,"${ihour}","${ihour}" "${EMISFILE_NEMO_SECTORSUM}_total.nc" "${EMISFILE_NEMO_SECTORSUM}"
        # Interpolate it
        if [[ -r "${EMISFILE_NEMO_SECTORSUM}" ]]; then
           srun python -u "${SCRIPT}" \
@@ -198,44 +195,44 @@ if [[ "${ANTHRO_EMISINV}" == *NEMO* ]]; then
       # Deterimine the type of representative days
       # The date is in the row that matches todays date and the column
       # determined by daytype
-      rowid=$((${JJJ_NEMO_BASE_YEAR} + 1 + 31)) # 1 for indexing, 31 because it includes the previous December
-      colid=${EMIS_SECTOR_NEMO_DAYTYPE[${isect_knt}]}
-      testdate=`awk -F',' -v row_num=${rowid} -v col_num=$colid 'NR==row_num {gsub(/[[:blank:]]/, "", $col_num); print $col_num; exit}' ${MERGEDATEFILE}`
+      rowid=$((JJJ_NEMO_BASE_YEAR + 1 + 31)) # 1 for indexing, 31 because it includes the previous December
+      colid=${EMIS_SECTOR_NEMO_PT_DAYTYPE[${isect_knt}]}
+      testdate=$(awk -F',' -v row_num="${rowid}" -v col_num="${colid}" 'NR==row_num {gsub(/[[:blank:]]/, "", $col_num); print $col_num; exit}' "${MERGEDATEFILE}")
       testfile=${INDIR_NEI2017_PT}/${isect}/inln_mole_${isect}_${testdate}_12US1_cmaq_${NEMO_VERSION}.ncf
       stackfile=${INDIR_NEI2017_PT}/${isect}/stack_groups_${isect}_12US1_2017gb_17j.ncf
       if [[ -r ${testfile} ]]; then
          # Put them here as NETCDF4, cut out TFLAG, whcih has dim(VAR), not the same between files
-         ncks -O -4 -x -v TFLAG ${testfile} ./tmp_${isect}.nc
-         ncks -O -4 -v "${NEI_VAR_LIST[@]}" ${stackfile} ./tmp_stack_${isect}.nc
+         ncks -O -4 -x -v TFLAG "${testfile}" "./tmp_${isect}.nc"
+         ncks -O -4 -v "${NEI_VAR_LIST[@]}" "${stackfile}" "./tmp_stack_${isect}.nc"
          NEMO_STACKFILES_TO_CAT+=("./tmp_stack_${isect}.nc")
          NEMO_EMISFILES_PT_TO_CAT+=("./tmp_${isect}.nc")
          
-         ncks -O --fix_rec_dmn TSTEP ./tmp_${isect}.nc ./tmp_${isect}.nc
-         ncks -O --fix_rec_dmn TSTEP ./tmp_stack_${isect}.nc ./tmp_stack_${isect}.nc
+         ncks -O --fix_rec_dmn TSTEP "./tmp_${isect}.nc" "./tmp_${isect}.nc"
+         ncks -O --fix_rec_dmn TSTEP "./tmp_stack_${isect}.nc" "./tmp_stack_${isect}.nc"
       fi
-      isect_knt=$((${isect_knt}+1))
+      isect_knt=$((isect_knt+1))
    done
    ## Cat all of the point source files together
    srun -n 1 python "${HOMErrfs}/workflow/tools/chem_merge_pt_emissions.py" "${NEMO_EMISFILE_PT_PROCESSED}" "${NEMO_VAR_LIST[@]}" "${NEMO_EMISFILES_PT_TO_CAT[@]}"
    srun -n 1 python "${HOMErrfs}/workflow/tools/chem_merge_pt_emissions.py" "${NEMO_STACKFILE_PROCESSED}" "${NEI_VAR_LIST[@]}" "${NEMO_STACKFILES_TO_CAT[@]}"
 
    # Update variable names for the chosen mechanism 
-   ncap2 -O -s 'e_ant_pt_in_unspc_fine=PEC+POC+PMOTHR' ${NEMO_EMISFILE_PT_PROCESSED} ${NEMO_EMISFILE_PT_PROCESSED}
-   ncrename -v PMC,e_ant_pt_in_unspc_coarse ${NEMO_EMISFILE_PT_PROCESSED}
-   ncks -O -x -v PEC,POC,PMOTHR ${NEMO_EMISFILE_PT_PROCESSED} ${NEMO_EMISFILE_PT_PROCESSED}
+   ncap2 -O -s 'e_ant_pt_in_unspc_fine=PEC+POC+PMOTHR' "${NEMO_EMISFILE_PT_PROCESSED}" "${NEMO_EMISFILE_PT_PROCESSED}"
+   ncrename -v PMC,e_ant_pt_in_unspc_coarse "${NEMO_EMISFILE_PT_PROCESSED}"
+   ncks -O -x -v PEC,POC,PMOTHR "${NEMO_EMISFILE_PT_PROCESSED}" "${NEMO_EMISFILE_PT_PROCESSED}"
    # Update dimension name for # of stacks
-   ncrename -d ROW,nanthro_pt ${NEMO_EMISFILE_PT_PROCESSED}
-   ncrename -d ROW,nanthro_pt ${NEMO_STACKFILE_PROCESSED}
+   ncrename -d ROW,nanthro_pt "${NEMO_EMISFILE_PT_PROCESSED}"
+   ncrename -d ROW,nanthro_pt "${NEMO_STACKFILE_PROCESSED}"
    # Append the times
-   ncks -A -v Time,xtime init.nc ${NEMO_EMISFILE_PT_PROCESSED}
-   ncks -A -v Time,xtime init.nc ${NEMO_STACKFILE_PROCESSED}
+   ncks -A -v Time,xtime init.nc "${NEMO_EMISFILE_PT_PROCESSED}"
+   ncks -A -v Time,xtime init.nc "${NEMO_STACKFILE_PROCESSED}"
    # Remove singleton dimensions
-   ncwa -O -a LAY,COL ${NEMO_EMISFILE_PT_PROCESSED} ${NEMO_EMISFILE_PT_PROCESSED}
-   ncwa -O -a LAY,COL,TSTEP ${NEMO_STACKFILE_PROCESSED} ${NEMO_STACKFILE_PROCESSED}
+   ncwa -O -a LAY,COL "${NEMO_EMISFILE_PT_PROCESSED}" "${NEMO_EMISFILE_PT_PROCESSED}"
+   ncwa -O -a LAY,COL,TSTEP "${NEMO_STACKFILE_PROCESSED}" "${NEMO_STACKFILE_PROCESSED}"
    # Cast the stack parameters through time
-   ncap2 -O -s 'e_ant_pt_in_unspc_fine[$Time,$TSTEP,$nanthro_pt]=e_ant_pt_in_unspc_fine' ${NEMO_EMISFILE_PT_PROCESSED} ${NEMO_EMISFILE_PT_PROCESSED}
-   ncap2 -O -s 'e_ant_pt_in_unspc_coarse[$Time,$TSTEP,$nanthro_pt]=e_ant_pt_in_unspc_coarse' ${NEMO_EMISFILE_PT_PROCESSED} ${NEMO_EMISFILE_PT_PROCESSED}
-   ncrename -v LATITUDE,STKLT -v LONGITUDE,STKLG ${NEMO_STACKFILE_PROCESSED}
+   ncap2 -O -s "e_ant_pt_in_unspc_fine[$Time,$TSTEP,$nanthro_pt]=e_ant_pt_in_unspc_fine" "${NEMO_EMISFILE_PT_PROCESSED}" "${NEMO_EMISFILE_PT_PROCESSED}"
+   ncap2 -O -s "e_ant_pt_in_unspc_coarse[$Time,$TSTEP,$nanthro_pt]=e_ant_pt_in_unspc_coarse" "${NEMO_EMISFILE_PT_PROCESSED}" "${NEMO_EMISFILE_PT_PROCESSED}"
+   ncrename -v LATITUDE,STKLT -v LONGITUDE,STKLG "${NEMO_STACKFILE_PROCESSED}"
 #
 fi # IS NEMO listed as part of the ANTHRO EMIS inventory?
 #
@@ -247,14 +244,14 @@ do
      MM_EMIS=$(date -d "${CDATE:0:8} ${CDATE:8:2} + ${ihour} hours" +%m)
      DD_EMIS=$(date -d "${CDATE:0:8} ${CDATE:8:2} + ${ihour} hours" +%d)
      HH_EMIS=$(date -d "${CDATE:0:8} ${CDATE:8:2} + ${ihour} hours" +%H)
-     LINKEDEMISFILE=${UMBRELLA_PREP_CHEM_DATA}/anthro.init.${YYYY_EMIS}-${MM_EMIS}-${DD_EMIS}_${HH_EMIS}.00.00.nc
+     LINKEDEMISFILE="${UMBRELLA_PREP_CHEM_DATA}/anthro.init.${YYYY_EMIS}-${MM_EMIS}-${DD_EMIS}_${HH_EMIS}.00.00.nc"
      if [[ "${ANTHRO_EMISINV}" == *GRA2PES* ]] && [[ "${ANTHRO_EMISINV}" == *NEMO* ]]; then
         # python chem_prep_prioritize_emissions.py "${LINKEDEMISFILE}" "${EMISFILE_NEMO_PROCESSED}_${HH_EMIS}.nc"
         # ncap2 -O -s 'merged_var=var1>0 ? file1.nc->var : file2.nc->var' file1.nc file2.nc output.nc
-         ncks -A -v e_ant_in_unspc_fine,e_ant_in_unspc_coarse "${EMISFILE_NEMO_PROCESSED}_${HH_EMIS}.nc" ${LINKEDEMISFILE}
+         ncks -A -v e_ant_in_unspc_fine,e_ant_in_unspc_coarse "${EMISFILE_NEMO_PROCESSED}_${HH_EMIS}.nc" "${LINKEDEMISFILE}"
      elif  [[ ! "${ANTHRO_EMISINV}" == *GRA2PES* ]] && [[ "${ANTHRO_EMISINV}" == *NEMO* ]]; then
-         ln -sf "${EMISFILE_NEMO_PROCESSED}_${HH_EMIS}.nc" ${LINKEDEMISFILE}
+         ln -sf "${EMISFILE_NEMO_PROCESSED}_${HH_EMIS}.nc" "${LINKEDEMISFILE}"
      fi
 done
 # Clean up
-rm -f tmp_*.nc *.tmp
+rm -f "tmp_*.nc" "*.tmp"
