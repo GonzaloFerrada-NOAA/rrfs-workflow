@@ -24,8 +24,7 @@ if [[ ! -r "${EMISFILE_RWC_PROCESSED}" ]]; then
                     "${INPUTDIR}" \
                     "${OUTPUTDIR}" \
                     "${INTERP_WEIGHTS_DIR}" \
-                    "${YYYY}${MM}${DD}${HH}" \
-                    "${MESH_NAME}"
+                    "${YYYY}${MM}${DD}${HH}"
 
    # Convert to how we want it
    ncap2 -O -s 'RWC_annual_sum=PEC+POC+PMOTHR' "${EMISFILE_RWC_PROCESSED}" "${EMISFILE_RWC_PROCESSED}"
@@ -46,8 +45,7 @@ if [[ ! -r "${EMISFILE_DENOM_PROCESSED}" ]] ; then
          "${NARR_INPUTDIR}" \
          "${NARR_OUTPUTDIR}" \
          "${INTERP_WEIGHTS_DIR}" \
-         "${YYYY}${MM}${DD}${HH}" \
-         "${MESH_NAME}"
+         "${YYYY}${MM}${DD}${HH}"
 
 #
   ncks -A -v RWC_annual_sum,RWC_annual_sum_smoke_fine,RWC_annual_sum_smoke_coarse,RWC_annual_sum_unspc_fine,RWC_annual_sum_unspc_coarse "${EMISFILE_RWC_PROCESSED}" "${EMISFILE_DENOM_PROCESSED}"

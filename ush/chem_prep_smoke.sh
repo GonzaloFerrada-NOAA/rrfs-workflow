@@ -13,13 +13,12 @@ ECO_OUTPUTDIR=${DATA}
 FMC_OUTPUTDIR=${DATA}
 #
 srun python -u "${SCRIPT}" \
-               "RAVE" \
+               "${FIRE_DATASET}" \
                "${DATA}" \
-               "${RAVE_INPUT}" \
+               "${FIRE_INPUT}" \
                "${RAVE_OUTPUTDIR}" \
                "${INTERP_WEIGHTS_DIR}" \
-               "${YYYY}${MM}${DD}${HH}" \
-               "${MESH_NAME}"  # CDATE?
+               "${YYYY}${MM}${DD}${HH}"
 mkdir -p logs
 mv ./*.log ./*.ESMF_LogFile logs || echo "could not move logs"
 #
@@ -57,7 +56,7 @@ do
     ncrename -v NH3,e_bb_in_nh3 "${EMISFILE2}"
     ln -sf "${EMISFILE2}" "${EMISFILE}"
   else
-    dummyRAVE=${FIXrrfs}/chemistry/RAVE/RAVE.dummy.${MESH_NAME}.nc
+    dummyRAVE=${FIXrrfs}/chemistry/${FIRE_DATASET}/${FIRE_DATASET}.dummy.${MESH_NAME}.nc
     if [[ -s ${dummyRAVE} ]]; then
       cp "${dummyRAVE}" "${EMISFILE}"
     else
@@ -91,8 +90,7 @@ if [[ ! -r "${ECO_OUTPUTDIR}/ecoregions_${MESH_NAME}_mpas.nc" ]] && [[ -r "${ECO
                    "${ECO_INPUTDIR}" \
                    "${ECO_OUTPUTDIR}" \
                    "${INTERP_WEIGHTS_DIR}" \
-                   "${YYYY}${MM}${DD}${HH}" \
-                   "${MESH_NAME}"
+                   "${YYYY}${MM}${DD}${HH}"
 
   ncks -A -v ecoregion_ID "${ECO_OUTPUTDIR}/ecoregions_${MESH_NAME}_mpas.nc" "${UMBRELLA_PREP_CHEM_DATA}"/smoke.init.nc
 fi
@@ -107,8 +105,7 @@ if [[ ${n_fmc} -gt 0 ]]; then
                      "${FMC_INPUTDIR}" \
                      "${FMC_OUTPUTDIR}" \
                      "${INTERP_WEIGHTS_DIR}" \
-                     "${YYYY}${MM}${DD}${HH}" \
-                     "${MESH_NAME}"
+                     "${YYYY}${MM}${DD}${HH}"
   # Average for ebb2
   ncrcat "${FMC_OUTPUTDIR}"/fmc*"${MESH_NAME}"*nc "${UMBRELLA_PREP_CHEM_DATA}"/fmc.init.nc
   ncks -A -v 10h_dead_fuel_moisture_content "${UMBRELLA_PREP_CHEM_DATA}"/fmc.init.nc "${UMBRELLA_PREP_CHEM_DATA}"/smoke.init.nc

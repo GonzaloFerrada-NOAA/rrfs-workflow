@@ -66,8 +66,7 @@ if [[ -r ${EMISFILE_BASE_RAW1_GRA2PES} ]] && [[ -r ${EMISFILE_BASE_RAW2_GRA2PES}
              "${INDIR_GRA2PES}" \
              "${OUTDIR}" \
              "${INTERP_WEIGHTS_DIR}" \
-             "${YYYY}${MM}${DD}${HH}" \
-             "${MESH_NAME}"
+             "${YYYY}${MM}${DD}${HH}"
 
   if [[ ! -r ${EMISFILE1_GRA2PES} ]] || [[ ! -r ${EMISFILE2_GRA2PES} ]]; then
      echo "ERROR: Did not interpolate ${ANTHRO_EMISINV}"
@@ -177,8 +176,7 @@ if [[ "${ANTHRO_EMISINV}" == *NEMO* ]]; then
                            "${DATA}" \
                            "${OUTDIR}" \
                            "${INTERP_WEIGHTS_DIR}" \
-                           "${YYYY}${MM}${DD}${HH}" \
-                           "${MESH_NAME}"
+                           "${YYYY}${MM}${DD}${HH}"
           ncap2 -O -s 'e_ant_in_unspc_fine=PEC+POC+PMOTHR' "${EMISFILE_NEMO_PROCESSED}"  "${EMISFILE_NEMO_PROCESSED}"
           ncrename -v PMC,e_ant_in_unspc_coarse "${EMISFILE_NEMO_PROCESSED}"
           mv "${EMISFILE_NEMO_PROCESSED}" "${EMISFILE_NEMO_PROCESSED}_${istr}.nc"

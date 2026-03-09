@@ -57,7 +57,64 @@ def find_latest_rave_file(input_dir, target_time_str, ebb_dcycle, max_lookback_h
 
     # nothing found within lookback window
     return []
+#
+def create_ngfs_sparse_mesh(lat_1d, lon_1d, resolution=0.01):
+    """
+    Creates an esmpy.Mesh dynamically from 1-D point source data.
+    Calculates the 4 corners of a square cell of size `resolution` 
+    around each center point in memory.
+    This is the best approach since NGFS data are point-source (1-D),
+    but we rarely have more than 1000 fires in the domain, so we
+    can afford to keep this in memory instead of creating a file.
+    """
 
+    num_cells = len(lat_1d)
+    if num_cells == 0:
+        return None
+
+    num_nodes = num_cells * 4
+    d = resolution / 2.0
+
+    node_lons = np.column_stack([
+        lon_1d - d, lon_1d + d, lon_1d + d, lon_1d - d
+    ]).flatten()
+
+    node_lats = np.column_stack([
+        lat_1d - d, lat_1d - d, lat_1d + d, lat_1d + d
+    ]).flatten()
+
+    node_coords = np.empty(num_nodes * 2, dtype=np.float64)
+    node_coords[0::2] = node_lons
+    node_coords[1::2] = node_lats
+
+    node_ids = np.arange(1, num_nodes + 1, dtype=np.int32)
+    node_owners = np.full(num_nodes, COMM.rank, dtype=np.int32)
+
+    element_ids = np.arange(1, num_cells + 1, dtype=np.int32)
+    element_types = np.full(num_cells, esmpy.MeshElemType.QUAD, dtype=np.int32)
+
+    # CRITICAL FIX: esmpy expects 0-based indexing for connectivity!
+    element_conn = np.arange(0, num_nodes, dtype=np.int32)
+
+    # Explicitly set spherical coordinates
+    mesh = esmpy.Mesh(parametric_dim=2, spatial_dim=2, coord_sys=esmpy.CoordSys.SPH_DEG)
+
+    mesh.add_nodes(
+        node_count=num_nodes,
+        node_ids=node_ids,
+        node_coords=node_coords,
+        node_owners=node_owners
+    )
+
+    mesh.add_elements(
+        element_count=num_cells,
+        element_ids=element_ids,
+        element_types=element_types,
+        element_conn=element_conn
+    )
+
+    return mesh
+#
 class AbstractRaveField(ABC, BaseModel):
     name: str
     attrs: dict[str, Any]
@@ -225,7 +282,15 @@ class RaveToMpasRegridContext(BaseModel):
         rave_fields = []
         with open_nc(self.src_path, mode="r") as ds:
             for field_name in self.field_names:
-                var = ds.variables[field_name]
+                read_name = field_name
+                if self.dataset_name == "NGFS" and field_name == "PM25":
+                    read_name = "EMIS_PM25"
+
+                if read_name not in ds.variables:
+                    raise KeyError(
+                        f"Source variable '{read_name}' not found for field '{field_name}' in {self.src_path}"
+                    )
+                var = ds.variables[read_name]
                 init_data = {
                     "name": field_name,
                     "attrs": self._get_nc_attrs_(var),
@@ -250,7 +315,6 @@ class RaveToMpasRegridContext(BaseModel):
                     app = RaveField3d.model_validate(init_data)
                 elif field_name in ("rdrag",):
                     app = RaveField2d_plusTime.model_validate(init_data)
-# GRAPES anthro data - 12 x 20 x lat x lon --> (latXlon) x (level) x (time) -----(then, back in the shell script)----> Time x nCells x nkemit
                 elif self.dataset_name == 'GRA2PES' and field_name in ("HC01", "PM25-PRI", "PM10-PRI", "h_agl","SO2","NH3","NOX","CO"):
                     app = RaveField4d.model_validate(init_data)
                 else:
@@ -728,6 +792,164 @@ class RaveToMpasRegridProcessor:
             raise ValueError
         return self._regridder
 
+    def init_destination_only(self) -> None:
+        """Loads the heavy MPAS destination mesh once for dynamic NGFS processing."""
+        _LOGGER.info("Initializing MPAS Destination Mesh (Once)")
+        esmpy.Manager(debug=True)
+
+        if not self.context.scrip_path.exists() and self.context.rank == 0:
+            _LOGGER.info("writing mpas scrip grid")
+            mpas_desc = MpasCellMeshDescriptor(
+                str(self.context.dst_path), self.context.mesh_name + ".init"
+            )
+            mpas_desc.to_scrip(str(self.context.scrip_path))
+
+        _LOGGER.info("create destination mesh")
+        dst_mesh = esmpy.Mesh(
+            filename=str(self.context.scrip_path), filetype=esmpy.FileFormat.SCRIP
+        )
+
+        # Create destination field (using logic from your original initialize method)
+        if self.context.level_out_size > 1 and self.context.time_size > 1:
+            self._dst_field = esmpy.Field(dst_mesh, name="dst", meshloc=esmpy.MeshLoc.ELEMENT, ndbounds=(self.context.level_out_size, self.context.time_size))
+        elif self.context.level_out_size > 1 and self.context.time_size == 1:
+            self._dst_field = esmpy.Field(dst_mesh, name="dst", meshloc=esmpy.MeshLoc.ELEMENT, ndbounds=(self.context.level_out_size,))
+        elif self.context.level_out_size == 1 and self.context.time_size > 1:
+            self._dst_field = esmpy.Field(dst_mesh, name="dst", meshloc=esmpy.MeshLoc.ELEMENT, ndbounds=(self.context.time_size,))
+        else:
+            self._dst_field = esmpy.Field(dst_mesh, name="dst", meshloc=esmpy.MeshLoc.ELEMENT)
+
+    def process_ngfs_file(self, file_path: Path, resolution: float = 0.01) -> None:
+        """Dynamically builds a mesh for NGFS points, regrids, and writes the output."""
+        _LOGGER.info(f"Processing NGFS file: {file_path}")
+
+        # 1. Read NGFS Coordinates AND Area
+        with open_nc(file_path, mode="r") as ds:
+            lats = ds.variables['lat'][:].filled(np.nan)
+            lons = ds.variables['lon'][:].filled(np.nan)
+
+            # Read the NGFS area (in km2)
+            if 'GRID_AREA' in ds.variables:
+                grid_area = ds.variables['GRID_AREA'][:].filled(np.nan)
+            else:
+                _LOGGER.warning("GRID_AREA not found! Defaulting to 1.0 km2.")
+                grid_area = np.ones_like(lats)
+
+        # Filter out NaNs
+        valid = ~np.isnan(lats) & ~np.isnan(lons) & ~np.isnan(grid_area)
+        lats = lats[valid]
+        lons = lons[valid]
+        grid_area = grid_area[valid]
+
+        # CRITICAL FIX: Convert -180/180 to 0/360 to match MPAS grid
+        lons = lons % 360.0
+
+        if len(lats) == 0:
+            _LOGGER.warning("No valid fires in file.")
+            return
+
+        # 2. Build Sparse Source Mesh
+        src_mesh = create_ngfs_sparse_mesh(lats, lons, resolution)
+        if src_mesh is None:
+            return
+
+        # 3. Create Output NetCDF File (Header Info)
+        if self.context.rank == 0:
+            with open_nc(self.context.new_dst_path, mode="w", clobber=True, parallel=False) as dst_nc:
+                dst_nc.createDimension("nCells", self.context.num_cells)
+                dst_nc.createDimension(self.context.level_out_name, self.context.level_out_size)
+                dst_nc.createDimension("StrLen", 64)
+                if self.context.time_size > 1:
+                    dst_nc.createDimension("Time", self.context.time_size)
+                elif self.context.time_size == 1:
+                    dst_nc.createDimension("Time")
+                dst_nc.setncattr("created_at", str(datetime.now(timezone.utc)))
+                dst_nc.setncattr("src_path", str(self.context.src_path))
+                dst_nc.setncattr("dst_path", str(self.context.dst_path))
+
+                # Copy base MPAS variables
+                with open_nc(self.context.dst_path, mode="r", parallel=False) as src_nc:
+                    for varname in ("latCell", "lonCell", "areaCell", "xland", "xtime"):
+                        copy_nc_variable(src_nc, dst_nc, varname, copy_data=True)
+
+
+        # 4. Process Each Variable
+        for rave_field in self.context.rave_fields:
+            _LOGGER.info(f"regridding NGFS {rave_field.name=}")
+
+            # Create Source Field dynamically
+            src_field = esmpy.Field(src_mesh, name=rave_field.name, meshloc=esmpy.MeshLoc.ELEMENT)
+
+            # Map MPAS expected name to NGFS actual name
+            if rave_field.name == "PM25":
+                ngfs_var_name = "EMIS_PM25"
+            else:
+                ngfs_var_name = rave_field.name
+
+            # Load the raw data
+            with open_nc(file_path, mode="r") as ds:
+                if ngfs_var_name in ds.variables:
+                    raw_data = ds.variables[ngfs_var_name][:].filled(0.0)[valid]
+                else:
+                    _LOGGER.warning(f"Variable {ngfs_var_name} not found! Skipping.")
+                    continue
+
+            # ---------------------------------------------------------
+            # UNIT CONVERSIONS (Identical to RAVE logic)
+            # ---------------------------------------------------------
+            if rave_field.name in ("PM25", "TPM"):
+                # Convert from kg/hr to ug/m2/s (1e3 handles the km2 to m2 and kg to ug ratio)
+                src_data = np.where(raw_data < 0.0, 0.0, raw_data * 1.e3 / grid_area / 3600.0)
+            elif rave_field.name in ("FRE", "FRP_MEAN"):
+                # For FRE, FRP: MW to W (1e6) cancels out with km2 to m2 (1e6)
+                src_data = np.where(raw_data < 0.0, 0.0, raw_data / grid_area)
+            else:
+                src_data = np.where(raw_data < 0.0, 0.0, raw_data)
+
+            src_field.data[:] = src_data
+
+            # Create Dynamic Regridder
+            regridder = esmpy.Regrid(
+                srcfield=src_field,
+                dstfield=self._dst_field,
+                regrid_method=esmpy.RegridMethod.CONSERVE,
+                unmapped_action=esmpy.UnmappedAction.IGNORE
+            )
+
+            # Apply Regridding
+            self._dst_field.data.fill(0.0)
+            regridder(src_field, self._dst_field)
+
+            # Write to Output NetCDF
+            local_bounds = (self._dst_field.lower_bounds[0], self._dst_field.upper_bounds[0])
+            reconciled_bounds = reconcile_bounds(local_bounds)
+            dims = rave_field.create_dimension_collection(reconciled_bounds)
+
+            with open_nc(self.context.new_dst_path, mode="a") as ds:
+                var = ds.createVariable(
+                    rave_field.name, # Keep it as standard name in output!
+                    rave_field.dtype,
+                    [dim.name[0] for dim in dims.value],
+                    fill_value=rave_field.fill_value,
+                )
+                for k, v in rave_field.attrs.items():
+                    setattr(var, k, v)
+
+                # Multiply by areaCell for Power/Energy variables (back to total W in cell)
+                if rave_field.name in ("FRP_MEAN", "FRE"):
+                    area = np.asarray(ds.variables['areaCell'])
+                    area_subset = area[reconciled_bounds[0]:reconciled_bounds[1]]
+                    set_variable_data(var, dims, rave_field.reshape_field_data(self._dst_field.data * area_subset), collective=True)
+                else:
+                    set_variable_data(var, dims, rave_field.reshape_field_data(self._dst_field.data), collective=True)
+
+            # Clean up memory
+            regridder.destroy()
+            src_field.destroy()
+
+        # Clean up mesh
+        src_mesh.destroy()
+
 
 def main() -> None:
     dataset_name = sys.argv[1]  # Which dataset are we interpolating?
@@ -736,9 +958,11 @@ def main() -> None:
     output_dir = sys.argv[4]  # Top directory of output data
     weight_dir = sys.argv[5]  # Directory that contains the regrid weights
     cycle = sys.argv[6]  # Cycle Time, YYYYMMDDHH
-    mesh_name = sys.argv[7]  # Name of the domain
 
+    #mesh_name  = os.getenv('MESH_NAME') 
     ebb_dcycle = int(os.getenv('EBB_DCYCLE'))
+    fcst_length= int(os.getenv('FCST_LENGTH'))
+    mesh_name  = os.getenv('MESH_NAME')
     #
     # Test to see if scrip files exist
     # testpath = Path(weight_dir + "/scrip_files/mpas_" + mesh_name + "_scrip.nc")
@@ -805,7 +1029,39 @@ def main() -> None:
         time_name = "time"
         time_size = 1
         InterpMethod = "CONSERVE"
-        # InterpMethod = "BILINEAR"
+    elif dataset_name == "NGFS":
+        field_names = ("FRE", "FRP_MEAN", "PM25")
+
+        # Determine the cycle dates to process +%Y%m%d%H
+        # This is for RETROS (using current datetime, not day before)
+        dates_needed = []
+        for i in range(25): # GAF retro current day emissions
+            if ebb_dcycle == 1: # Same-day emissions
+                x = datetime(int(YYYY), int(MM), int(DD), int(HH), 0, 0) + timedelta(hours=i)
+            elif ebb_dcycle == -1 or ebb_dcycle == 2: # Persistence (-1) or forecasted (2) needs prev 24 hours 
+                x = datetime(int(YYYY), int(MM), int(DD), int(HH), 0, 0) - timedelta(hours=i)
+            else:
+                _LOGGER.info("EBB_DCYLE selection not recognized, reverting to same day, ebb_dcycle = 1")
+                x = datetime(int(YYYY), int(MM), int(DD), int(HH), 0, 0) + timedelta(hours=i)
+            y = x.strftime("%Y%m%d%H")
+            dates_needed.append(y)
+        #
+        x_center = "lon"
+        y_center = "lat"
+        x_dim = "point" # Dummy dimension name for context
+        y_dim = "point" # Dummy dimension name for context
+        # We set corners to None because the helper calculates them in memory
+        x_corner = None
+        y_corner = None
+        x_corner_dim = None
+        y_corner_dim = None
+        level_in_name = "None"
+        level_out_name = "nkwildfire"
+        level_out_size = 1
+        time_name = "time"
+        time_size = 1
+        InterpMethod = "CONSERVE"
+
     elif dataset_name == "GRA2PES":
         field_names = ("PM25-PRI", "PM10-PRI","SO2","CO","NOX","NH3","h_agl")  # ,"HC01"=methane BAQMS, summer, 2025
         x_center = "XLONG"  # "XLONG_M"
@@ -1032,6 +1288,55 @@ def main() -> None:
                 processor.finalize()
 
             _LOGGER.info("success")
+
+    elif dataset_name == "NGFS":
+        # Initialize context with dummy paths (they get overwritten in the loop)
+        context = RaveToMpasRegridContext(
+            dataset_name=dataset_name,
+            src_path=Path("dummy"),
+            dst_path=dst_path,
+            new_dst_path=Path("dummy"),
+            desc_stats_out=desc_stats_out,
+            weight_path=weight_path,
+            InterpMethod=InterpMethod,
+            scrip_path=scrip_path,
+            num_cells=num_cells,
+            mesh_name=mesh_name,
+            field_names=field_names,
+            x_center=x_center, y_center=y_center, x_dim=x_dim, y_dim=y_dim,
+            x_corner=x_corner, y_corner=y_corner,
+            x_corner_dim=x_corner_dim, y_corner_dim=y_corner_dim,
+            level_in_name=level_in_name, level_out_name=level_out_name, level_out_size=level_out_size,
+            time_name=time_name, time_size=time_size
+        )
+
+        processor = RaveToMpasRegridProcessor(context=context)
+
+        for date_to_process in dates_needed:
+            # Construct the filename (Adjust the prefix 'ngfs_' if your files are named differently)
+            # print("GAF debug: attempting to read: " + input_dir + "/NGFS_v0.31_" + date_to_process + "_0p01.nc")
+            ngfs_paths = glob.glob(input_dir + "/NGFS_v0.31_0p01_" + date_to_process + "0000.nc")
+
+            if not ngfs_paths:
+                print(f"ERROR: Missing NGFS file for {date_to_process}. Skipping.")
+                exit(1)
+                # TODO: perhaps add a helper similarly as I added for RAVE to search for the latest
+                # available file in case that the current datetime does not exist
+                continue
+
+            ngfs_path = Path(ngfs_paths[0])
+            new_dst_path = Path(output_dir + "/" + mesh_name + "-NGFS-" + date_to_process + ".nc")
+            print(f"GAF reading NGFS file: {ngfs_path}")
+
+            # Update context paths for the current hour
+            processor.context.src_path = ngfs_path
+            processor.context.new_dst_path = new_dst_path
+
+            # Execute the dynamic regridding for this specific hour's fires
+            # Note that resolution is hard coded...
+            processor.process_ngfs_file(ngfs_path, resolution=0.01)
+
+        _LOGGER.info("NGFS success")
 
     elif dataset_name == "FMC":
         for date_to_process in dates_needed:

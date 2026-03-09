@@ -35,7 +35,8 @@ export WALLTIME_PREP_CHEM_ICBC="00:30:00"
 case ${MACHINE} in
   "hera")
     export CHEM_INPUT="/scratch4/BMC/acomp/cheMPAS-Fire/input"
-    export RAVE_INPUT="${CHEM_INPUT}/emissions/RAVE/raw"
+    export FIRE_DATASET="RAVE" #  e.g., or NGFS
+    export FIRE_INPUT="${CHEM_INPUT}/emissions/${FIRE_DATASET}/raw"
     export REGRID_WRAPPER_DIR="/scratch4/BMC/acomp/Sudheer/Fire-nest/RRFS-SD/Tools/regrid-wrapper_aeroV0"
     export REGRID_CONDA_ENV="/scratch3/BMC/acomp/Sudheer/anaconda3/envs/regrid-wrapper"
     export ACCOUNT=${ACCOUNT:-"acomp"}
@@ -49,7 +50,12 @@ case ${MACHINE} in
     ;;
   "ursa")
     export CHEM_INPUT="/scratch4/BMC/acomp/cheMPAS-Fire/input"
-    export RAVE_INPUT="${CHEM_INPUT}/emissions/RAVE/raw"
+    export FIRE_DATASET="RAVE" #  e.g., or NGFS
+    if ${REALTIME:-false}; then
+       export FIRE_INPUT="/public/data/grids/nesdis/3km_fire_emissions"
+    else
+       export FIRE_INPUT="${CHEM_INPUT}/emissions/${FIRE_DATASET}/raw"
+    fi
     export REGRID_WRAPPER_DIR="/scratch4/BMC/acomp/Sudheer/Fire-nest/RRFS-SD/Tools/regrid-wrapper_aeroV0"
     export REGRID_CONDA_ENV="/scratch4/BMC/acomp/Sudheer/anaconda3Ursa/envs/regrid-wrapper"
     export ACCOUNT=${ACCOUNT:-"acomp"}
@@ -63,10 +69,11 @@ case ${MACHINE} in
     ;;
   "jet")
     export CHEM_INPUT="/lfs6/BMC/rtwbl/cheMPAS-Fire/input"
+    export FIRE_DATASET="RAVE" #  e.g., or NGFS
     if ${REALTIME:-false}; then
-      export RAVE_INPUT="/public/data/grids/nesdis/3km_fire_emissions"
+      export FIRE_INPUT="/public/data/grids/nesdis/3km_fire_emissions"
     else
-      export RAVE_INPUT="${CHEM_INPUT}/emissions/RAVE/raw"
+      export FIRE_INPUT="${CHEM_INPUT}/emissions/${FIRE_DATASET}/raw"
     fi
     export REGRID_WRAPPER_DIR="/lfs5/BMC/rtwbl/rap-chem/mpas_rt/working/ben_interp/regrid-wrapper/"
     export REGRID_CONDA_ENV="/lfs5/BMC/rtwbl/rap-chem/miniconda/envs/regrid-wrapper"
@@ -82,7 +89,8 @@ case ${MACHINE} in
     ;;
   "gaeac6")
     export CHEM_INPUT="/gpfs/f6/drsa-fire3/world-shared/cheMPAS-Fire/input"
-    export RAVE_INPUT="${CHEM_INPUT}/emissions/RAVE/raw"
+    export FIRE_DATASET="RAVE" #  e.g., or NGFS
+    export FIRE_INPUT="${CHEM_INPUT}/emissions/${FIRE_DATASET}/raw"
     export REGRID_WRAPPER_DIR="/gpfs/f6/drsa-fire3/world-shared/Sudheer/MPAS/Tools/regrid-wrapper_aeroV0/"
     export REGRID_CONDA_ENV="/gpfs/f6/drsa-fire3/world-shared/Sudheer/anaconda3/envs/regrid-wrapper/"
     export NODES_PREP_CHEM="<nodes>1:ppn=1</nodes>"
