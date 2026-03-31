@@ -1,19 +1,17 @@
 #!/usr/bin/env python
 import os
+import sys
+import textwrap
 from rocoto_funcs.base import xml_task, get_cascade_env
 
 # begin of fcst --------------------------------------------------------
 
 
-def fcst(xmlFile, expdir, do_ensemble=False, do_spinup=False):
+def fcst(xmlFile, expdir, do_ensemble=False, dcEnsGrpInfo=None, do_spinup=False):
     meta_id = 'fcst'
+    dep_xml = ""
     if do_spinup:
         cycledefs = 'spinup'
-        num_spinup_cycledef = os.getenv('NUM_SPINUP_CYCLEDEF', '1')
-        if num_spinup_cycledef == '2':
-            cycledefs = 'spinup,spinup2'
-        elif num_spinup_cycledef == '3':
-            cycledefs = 'spinup,spinup2,spinup3'
     else:
         cycledefs = 'prod'
     # Task-specific EnVars beyond the task_common_vars
@@ -23,12 +21,16 @@ def fcst(xmlFile, expdir, do_ensemble=False, do_spinup=False):
     history_interval = os.getenv('HISTORY_INTERVAL', '1')
     restart_interval = os.getenv('RESTART_INTERVAL', 'none')
     physics_suite = os.getenv('PHYSICS_SUITE', 'PHYSICS_SUITE_not_defined')
+    coldhrs = os.getenv('COLDSTART_CYCS', '03 15')
+    coldstart_cyc_do_da = os.getenv('COLDSTART_CYCS_DO_DA', 'TRUE')
+    recenter_cycs = os.getenv('RECENTER_CYCS', '99')
     dcTaskEnv = {
         'EXTRN_MDL_SOURCE': f'{extrn_mdl_source}',
         'LBC_INTERVAL': f'{lbc_interval}',
         'HISTORY_INTERVAL': f'{history_interval}',
         'RESTART_INTERVAL': f'{restart_interval}',
         'MPASOUT_INTERVAL': os.getenv('MPASOUT_INTERVAL', '1'),
+        'MPASOUT_TIMELEVELS': os.getenv('MPASOUT_TIMELEVELS', ''),
         'PHYSICS_SUITE': f'{physics_suite}',
         'FCST_LEN_HRS_CYCLES': f'{fcst_len_hrs_cycles}',
         'FCST_DT': os.getenv('FCST_DT', 'FCST_DT_not_defined'),
@@ -60,15 +62,19 @@ def fcst(xmlFile, expdir, do_ensemble=False, do_spinup=False):
         meta_end = ""
         ensindexstr = ""
     else:
+        if dcEnsGrpInfo is None:
+            print('dcEnsGrpInfo not set up or incorrect!')
+            sys.exit(1)
+        ens_indices = dcEnsGrpInfo["ens_indices"]
+        dep_xml = dcEnsGrpInfo["dep_xml"]
+        group_name = dcEnsGrpInfo["group_name"]
         metatask = True
         task_id = f'{meta_id}_m#ens_index#'
         dcTaskEnv['ENS_INDEX'] = "#ens_index#"
         meta_bgn = ""
         meta_end = ""
-        ens_size = int(os.getenv('ENS_SIZE', '2'))
-        ens_indices = ''.join(f'{i:03d} ' for i in range(1, int(ens_size) + 1)).strip()
         meta_bgn = f'''
-<metatask name="{meta_id}">
+<metatask name="{group_name}">
 <var name="ens_index">{ens_indices}</var>'''
         meta_end = f'\
 </metatask>\n'
@@ -84,25 +90,82 @@ def fcst(xmlFile, expdir, do_ensemble=False, do_spinup=False):
 
     jedidep = ""
     cloudana_dep = ""
+    final_recenterdep = ""
     recenterdep = ""
+    spaces = " " * 6
+    do_da = False
     if os.getenv("DO_NONVAR_CLOUD_ANA", "FALSE").upper() == "TRUE":
+        do_da = True
         if do_spinup:
             cloudana_dep = f'\n    <taskdep task="nonvar_cldana_spinup"/>'
         else:
             cloudana_dep = f'\n    <taskdep task="nonvar_cldana{ensindexstr}"/>'
-    elif os.getenv("DO_JEDI", "FALSE").upper() == "TRUE":
-        if os.getenv("DO_ENSEMBLE", "FALSE").upper() == "TRUE":
-            jedidep = f'\n<taskdep task="getkf_solver"/>'
-        elif do_spinup:
-            jedidep = f'\n<taskdep task="jedivar_spinup"/>'
-        else:
-            jedidep = f'\n<taskdep task="jedivar"/>'
-    else:
-        if os.getenv("DO_RECENTER", "FALSE").upper() == "TRUE":
-            if os.getenv("DO_ENSEMBLE", "FALSE").upper() == "TRUE":
-                recenterdep = f'\n<taskdep task="recenter"/>'
 
-    prep_ic_dep = f'<taskdep task="prep_ic{ensindexstr}"/>'
+    if os.getenv("DO_JEDI", "FALSE").upper() == "TRUE":
+        do_da = True
+        if os.getenv("DO_ENSEMBLE", "FALSE").upper() == "TRUE":
+            jedidep = f'\n    <taskdep task="getkf_solver"/>'
+        elif do_spinup:
+            jedidep = f'\n    <taskdep task="jedivar_spinup"/>'
+        else:
+            jedidep = f'\n    <taskdep task="jedivar"/>'
+
+    if os.getenv("DO_RECENTER", "FALSE").upper() == "TRUE":
+        if os.getenv("DO_ENSEMBLE", "FALSE").upper() == "TRUE":
+            recenterhrs = recenter_cycs.split(' ')
+            recenterdep = f'\n<taskdep task="recenter"/>'
+            streqs_rec = "<or>"
+            strneqs_rec = "<and>"
+            for hr in recenterhrs:
+                hr = f"{int(hr):02d}"
+                streqs_rec += '\n' + spaces + f'  <streq><left><cyclestr>@H</cyclestr></left><right>{hr}</right></streq>'
+                strneqs_rec += '\n' + spaces + f'  <strneq><left><cyclestr>@H</cyclestr></left><right>{hr}</right></strneq>'
+            streqs_rec += '\n' + spaces + '</or>'
+            strneqs_rec += '\n    </and>'
+            recenterdep_indented = textwrap.indent(recenterdep, "      ")  # 6 extra spaces
+            final_recenterdep = f'''
+    <or>
+    {strneqs_rec}
+    <and>
+      {streqs_rec}{recenterdep_indented}
+    </and>
+    </or>'''
+
+    mpasblend_dep = ""
+    if os.getenv("DO_BLENDING", "FALSE").upper() == "TRUE":
+        if do_spinup:
+            mpasblend_dep = f'\n        <taskdep task="mpas_blend_spinup"/>'
+        else:
+            mpasblend_dep = f'\n        <taskdep task="mpas_blend"/>'
+
+    coldhrs = coldhrs.split(' ')
+    streqs = ""
+    strneqs = ""
+    if do_da:
+        if coldstart_cyc_do_da.upper() == "FALSE":  # if no DA at coldstart cycs, skip checking DA tasks
+            streqs = "\n        <or>"
+            for hr in coldhrs:
+                hr = f"{int(hr):02d}"
+                streqs += '\n  ' + spaces + f'  <streq><left><cyclestr>@H</cyclestr></left><right>{hr}</right></streq>'
+                strneqs += '\n' + spaces + f'  <strneq><left><cyclestr>@H</cyclestr></left><right>{hr}</right></strneq>'
+            streqs += '\n  ' + spaces + '</or>'
+            jedidep_indented = textwrap.indent(jedidep, "    ")  # four extra spaces
+            cloudana_dep_indented = textwrap.indent(cloudana_dep, "    ")  # four extra spaces
+            da_dep = f'''
+    <or>
+      <and>{streqs}{mpasblend_dep}
+      </and>
+      <and>{strneqs}{jedidep_indented}{cloudana_dep_indented}
+      </and>
+    </or>'''
+
+        else:
+            da_dep = f'{jedidep}{cloudana_dep}'
+
+    else:
+        da_dep = ""
+
+    prep_ic_dep = f'<taskdep task="prep_ic"/>'
     if do_spinup:
         prep_ic_dep = f'<taskdep task="prep_ic_spinup"/>'
     prep_lbc_dep = f'\n    <taskdep task="prep_lbc{ensindexstr}" cycle_offset="0:00:00"/>'
@@ -111,8 +174,8 @@ def fcst(xmlFile, expdir, do_ensemble=False, do_spinup=False):
 
     dependencies = f'''
   <dependency>
-  <and>{timedep}{prep_lbc_dep}
-    {prep_ic_dep}{jedidep}{chemdep}{cloudana_dep}{recenterdep}
+  <and>{timedep}{prep_lbc_dep}{da_dep}
+    {prep_ic_dep}{chemdep}{final_recenterdep}{dep_xml}
   </and>
   </dependency>'''
 

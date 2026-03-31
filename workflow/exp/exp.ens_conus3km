@@ -17,7 +17,7 @@ export DO_ENSEMBLE=true
 export IC_ONLY=false  # interpolate GEFS/GDAS to the target mesh to provide ensemble BEC
 export DO_DETERMINISTIC=false
 export ENS_SIZE=30
-export ZETA_LEVELS="L65.txt"
+export ZETA_LEVELS="L60.txt"
 #
 export DO_IODA=false
 export DO_JEDI=false
@@ -35,8 +35,7 @@ for i in {0..23};    do arr[$i]="03"; done # 3hr fcst
 for i in {0..23..6}; do arr[$i]="03"; done # 3hr fcst every 6hrs
 export FCST_LEN_HRS_CYCLES="${arr[*]}"
 export HISTORY_INTERVAL=1
-export MPASSIT_GROUP_TOTAL_NUM=2
-export UPP_GROUP_TOTAL_NUM=2
+export POST_GROUP_TOT_NUM=2 # num of groups, the final group absorbs leftovers, the first group contains the extra f000h file
 
 export IC_OFFSET=30
 export LBC_OFFSET=6
@@ -64,7 +63,7 @@ export WALLTIME_UPP="2:00:00"
 export WALLTIME_GETKF="00:30:00"
 #
 export KEEPDATA=NO
-export RETRO_TASKTHROTTLE=60
+export TASKTHROTTLE=60
 #
 # local.setup: setup some local options specific to a platform or an experiment
 #

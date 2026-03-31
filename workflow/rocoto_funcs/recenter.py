@@ -25,39 +25,33 @@ def recenter(xmlFile, expdir):
         timedep = f'\n    <timedep><cyclestr offset="{starttime}">@Y@m@d@H@M00</cyclestr></timedep>'
 
     if det_recentercycs_do_da.upper() == "TRUE":
-        datadep_init = f'<datadep age="00:05:00"><cyclestr>&COMROOT;/&NET;/&rrfs_ver;/&RUN;.@Y@m@d/@H/jedivar/det/init.@Y-@m-@d_@H.@M.@S.nc</cyclestr></datadep>'
+        datadep_init = f'<datadep age="00:01:00"><cyclestr>&COMROOT;/&NET;/&rrfs_ver;/&RUN;.@Y@m@d/@H/jedivar/det/init.@Y-@m-@d_@H.@M.@S.nc</cyclestr></datadep>'
     else:
         datadep_init = f'''<or>
-           <datadep age="00:05:00"><cyclestr>&DATAROOT;/@Y@m@d/&RUN;_prep_ic_@H_&rrfs_ver;/det/init.nc</cyclestr></datadep>
-           <datadep age="00:05:00"><cyclestr>&DATAROOT;/@Y@m@d/&RUN;_prep_ic_@H_&rrfs_ver;/det/mpasout.nc</cyclestr></datadep>
+           <datadep age="00:01:00"><cyclestr>&DATAROOT;/@Y@m@d/&RUN;_prep_ic_@H_&rrfs_ver;/det/init.nc</cyclestr></datadep>
+           <datadep age="00:01:00"><cyclestr>&DATAROOT;/@Y@m@d/&RUN;_prep_ic_@H_&rrfs_ver;/det/mpasout.nc</cyclestr></datadep>
          </or>'''
 
     datadep = f'''<or>
          {datadep_init}
-         <datadep age="00:05:00"><cyclestr>&COMROOT;/&NET;/&rrfs_ver;/&RUN;.@Y@m@d/@H/jedivar/det/mpasout.@Y-@m-@d_@H.@M.@S.nc</cyclestr></datadep>
-       </or>'''
+         <datadep age="00:01:00"><cyclestr>&COMROOT;/&NET;/&rrfs_ver;/&RUN;.@Y@m@d/@H/jedivar/det/mpasout.@Y-@m-@d_@H.@M.@S.nc</cyclestr></datadep>
+     </or>'''
 
     recenterhrs = recenter_cycs.split(' ')
     streqs = ""
-    strneqs = ""
     for hr in recenterhrs:
         hr = f"{hr:0>2}"
         streqs = streqs + f"\n         <streq><left><cyclestr>@H</cyclestr></left><right>{hr}</right></streq>"
-        strneqs = strneqs + f"\n         <strneq><left><cyclestr>@H</cyclestr></left><right>{hr}</right></strneq>"
 
     dependencies = f'''
   <dependency>
   <and>{timedep}
-    <or>
-      <and>
-       <or>{streqs}
-       </or>
-       {datadep}
-      </and>
-      <and>{strneqs}
-      </and>
-    </or>
-    <metataskdep metatask="prep_ic"/>
+    <and>
+     <or>{streqs}
+     </or>
+     {datadep}
+    </and>
+    <taskdep task="prep_ic"/>
   </and>
   </dependency>'''
     #

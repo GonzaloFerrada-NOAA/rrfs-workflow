@@ -82,12 +82,6 @@ cost function:
         covariance model: SABER
         saber central block:
           saber block name: gsi static covariance
-          active variables: &ctlvars
-          - eastward_wind
-          - northward_wind
-          - air_temperature
-          - relative_humidity
-          - air_pressure_at_surface
           read:
             gsi akbk: foo.nc
             gsi error covariance file: berror_stats
@@ -123,11 +117,8 @@ cost function:
           - northward_wind
           - air_temperature
           - air_pressure_at_surface
+          - air_pressure
           - water_vapor_mixing_ratio_wrt_moist_air
-        linear variable change:
-          linear variable change name: Control2Analysis
-          input variables: *ctlvars
-          output variables: *incvars
       weight:
         value: "@HYB_WGT_STATIC@"
     - covariance:
@@ -18179,9 +18170,9 @@ cost function:
          horizontal_mesh: 60
          use_reduced_horizontal_grid: true
          distance_norm: maximum
-         time_mesh: '{{window_length}}'
-         time_min: '{{window_begin}}'
-         time_max: '{{window_end}}'
+         time_mesh: '@THINNING_TIME_MESH@'
+         time_min: '@THINNING_TIME_MIN@'
+         time_max: '@THINNING_TIME_MAX@'
          #  round_horizontal_bin_count_to_nearest: true
          #  partition_longitude_bins_using_mesh: true
          actions:
@@ -18687,9 +18678,9 @@ cost function:
          horizontal_mesh: 60
          use_reduced_horizontal_grid: true
          distance_norm: maximum
-         time_mesh: '{{window_length}}'
-         time_min: '{{window_begin}}'
-         time_max: '{{window_end}}'
+         time_mesh: '@THINNING_TIME_MESH@'
+         time_min: '@THINNING_TIME_MIN@'
+         time_max: '@THINNING_TIME_MAX@'
          #  round_horizontal_bin_count_to_nearest: true
          #  partition_longitude_bins_using_mesh: true
          actions:

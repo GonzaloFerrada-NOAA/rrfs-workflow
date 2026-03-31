@@ -69,10 +69,17 @@ history_interval=${HISTORY_INTERVAL:-1}
 diag_interval=${HISTORY_INTERVAL:-1}
 mpasout_interval=${MPASOUT_INTERVAL:-1}
 [[ ${restart_interval} =~ ^[0-9]+$ ]] && restart_interval="${restart_interval}:00:00"
+[[ ${history_interval} =~ ^[0-9]+$ ]] && history_interval="${history_interval}:00:00"
+[[ ${diag_interval} =~ ^[0-9]+$ ]] && diag_interval="${diag_interval}:00:00"
 [[ ${mpasout_interval} =~ ^[0-9]+$ ]] && mpasout_interval="${mpasout_interval}:00:00"
+if [[ "${MPASOUT_TIMELEVELS}" != "" ]]; then # prioritize MPASOUT_TIMELEVELS
+  mpasout_replacement="s|output_interval=\"@mpasout_interval@\"|output_timelevels=\"${MPASOUT_TIMELEVELS}\"|"
+else
+  mpasout_replacement="s/@mpasout_interval@/${mpasout_interval}/"
+fi
 sed -e "s/@restart_interval@/${restart_interval}/" -e "s/@history_interval@/${history_interval}/" \
     -e "s/@diag_interval@/${diag_interval}/" -e "s/@lbc_interval@/${lbc_interval}/" \
-    -e "s/@mpasout_interval@/${mpasout_interval}/" "${PARMrrfs}"/streams.atmosphere  > streams.atmosphere
+    -e "${mpasout_replacement}"  "${PARMrrfs}"/streams.atmosphere  > streams.atmosphere
 #
 if [[ "${mpasout_interval,,}" == "none" ]]; then  # remove the da_state stream for coldstart only forecasts
   sed -i '/<stream name="da_state"/,/<\/stream>/d' streams.atmosphere
@@ -83,32 +90,54 @@ if [[ "${DO_CHEMISTRY^^}" == "TRUE" ]]; then
   source "${USHrrfs}"/chem_fcst.sh
 fi
 #
-# prelink the forecast output files to umbrella
-history_all=$(seq 0 $((10#${history_interval})) $((10#${fcst_len_hrs_thiscyc} )) )
-for fhr in ${history_all}; do
+# prelink the history/diag files to umbrella
+if [[ "${history_interval,,}" != "none" ]]; then
+  history_all=$(seq 0 $((10#${history_interval%%:*})) $((10#${fcst_len_hrs_thiscyc} )) )
+  for fhr in ${history_all}; do
+    CDATEp=$( ${NDATE} "${fhr}" "${CDATE}" )
+    timestr=$(date -d "${CDATEp:0:8} ${CDATEp:8:2}" +%Y-%m-%d_%H.%M.%S)
+    if [[ "${DO_SPINUP:-FALSE}" != "TRUE" ]];  then
+      ln -snf "${UMBRELLA_FCST_DATA}/history.${timestr}.nc" "${DATA}/"
+      ln -snf "${UMBRELLA_FCST_DATA}/history.${timestr}.nc.done" "${DATA}/"
+      ln -snf "${UMBRELLA_FCST_DATA}/diag.${timestr}.nc" "${DATA}/"
+      ln -snf "${UMBRELLA_FCST_DATA}/diag.${timestr}.nc.done" "${DATA}/"
+    fi
+  done
+fi
+# prelink the mpasout files to umbrella
+if [[ "${MPASOUT_TIMELEVELS}" != "" ]]; then # prioritize MPASOUT_TIMELEVELS
+  read -ra mpasout_all <<< "${MPASOUT_TIMELEVELS}"
+elif [[ "${mpasout_interval,,}" != "none" ]]; then
+ read -ra mpasout_all <<< "$(seq 0 $((10#${mpasout_interval%%:*})) $((10#${fcst_len_hrs_thiscyc} )) | paste -sd ' ')"
+fi
+# shellcheck disable=SC2068
+for fhr in ${mpasout_all[@]}; do
   CDATEp=$( ${NDATE} "${fhr}" "${CDATE}" )
   timestr=$(date -d "${CDATEp:0:8} ${CDATEp:8:2}" +%Y-%m-%d_%H.%M.%S)
   if [[ "${DO_SPINUP:-FALSE}" != "TRUE" ]];  then
-    ln -snf "${UMBRELLA_FCST_DATA}/history.${timestr}.nc" "${DATA}"
-    ln -snf "${UMBRELLA_FCST_DATA}/diag.${timestr}.nc" "${DATA}"
-    if [[ "${mpasout_interval,,}" != "none" ]]; then
-      ln -snf "${UMBRELLA_FCST_DATA}/mpasout.${timestr}.nc" "${DATA}"
-    fi
+    ln -snf "${UMBRELLA_FCST_DATA}/mpasout.${timestr}.nc" "${DATA}/"
+    ln -snf "${UMBRELLA_FCST_DATA}/mpasout.${timestr}.nc.done" "${DATA}/"
   fi
 done
 
 # run the MPAS model
 source prep_step
 ${cpreq} "${EXECrrfs}"/atmosphere_model.x .
-${MPI_RUN_CMD} ./atmosphere_model.x 
+${MPI_RUN_CMD} ./atmosphere_model.x
 export err=$?
 err_chk
+#
+# saving log.atmosphere.0000.out
+#
+[ -f ./log.atmosphere.0000.out ] && cat ./log.atmosphere.0000.out
 #
 # double check status as sometimes atmosphere_model.x exit with 0 but there are still errors (log.atmosphere*err)
 #
 num_err_log=$(find ./log.atmosphere*.err 2>/dev/null | wc -l)
 if (( "${num_err_log}" > 0 )) ; then
   echo "FATAL ERROR: MPAS model run failed"
+  # saving err log info from the first err log file
+  for f in ./log.atmosphere*.err; do [ -s "$f" ] && echo "--- Saving err info from $f ---" && cat "$f" && break; done
   err_exit
 else
   # spinup cycles copy f001 mpasout to com/ directly, don't need the save_for_next task

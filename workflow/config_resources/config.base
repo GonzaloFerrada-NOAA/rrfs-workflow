@@ -21,24 +21,32 @@ export KEEPDATA=${KEEPDATA:-"NO"}
 export MPI_RUN_CMD=${MPI_RUN_CMD:-"srun"}
 export USE_CONV_SAT_INFO=${USE_CONV_SAT_INFO:-true}
 export EMPTY_OBS_SPACE_ACTION=${EMPTY_OBS_SPACE_ACTION:-"skip output"}
+export MPASOUT_TIMELEVELS=${MPASOUT_TIMELEVELS:-"0 1"}
 export MPASOUT_SAVE2COM_HRS=${MPASOUT_SAVE2COM_HRS:-""}  # cycling mpasout.nc is saved by the 'save_for_next' task; specify other mpasout hours if needed, e.g. "02 03", "24", "24 48"
+#export POST_GROUP_SPEC="0-10 11-20 21-30 31-36" # customized group specification; setting this variable will overwrite POST_GROUP_TOT_NUM
 
 # PREP_LBC_LOOK_BACK_HRS
 if ${REALTIME:-false}; then
-  export PREP_LBC_LOOK_BACK_HRS=${PREP_LBC_LOOK_BACK_HRS:-13} # Python range(0,13) will make it 0-12
+  export PREP_LBC_LOOK_BACK_HRS=${PREP_LBC_LOOK_BACK_HRS:-11}
 else
   LBC_CYCS=$(echo "${LBC_CYCS}" | xargs) # trim any leading, trailing and extra spaces
-  lbc_step_hrs=$(( 24*3/(${#LBC_CYCS}+1) ))
+  lbc_step_hrs=$(( 24*3/(${#LBC_CYCS}+1) -1 ))
   export PREP_LBC_LOOK_BACK_HRS=${PREP_LBC_LOOK_BACK_HRS:-${lbc_step_hrs}}
+fi
+
+# if HISTORY_INTERVAL=none, set DO_POST=false
+if [[ "${HISTORY_INTERVAL,,}" == "none" ]]; then
+  export DO_POST=false
 fi
 
 # DO_CLEAN
 if ${DO_CLEAN:-false} && ! ${REALTIME:-false}; then
-  export STMP_RETENTION_CYCS=${STMP_RETENTION_CYCS:-24}
+  export STMP_RETENTION_CYCS=${STMP_RETENTION_CYCS:-2}
   export COM_RETENTION_CYCS=${COM_RETENTION_CYCS:-2400}  # 100 days
+  export COM_LBC_RETENTION_CYCS=${COM_RETENTION_CYCS:-2400}
   export LOG_RETENTION_CYCS=${LOG_RETENTION_CYCS:-2400}
-  export CLEAN_MODE=${CLEAN_MODE:-2} # default to 2 for retros
-  # 1. only keep the latest few cycles; 2. purge current cycle stmp directories when it finishes successfully
+  export CHECK_IS_CYC_DONE=${CHECK_IS_CYC_DONE:-true}
+  export STMP_KEPT_TASKS=${STMP_KEPT_TASKS:-""}  # eg. jedivar or jedivar,mpassit,upp
 fi
 
 # ioda_airnow
@@ -48,13 +56,13 @@ export NODES_IODA_AIRNOW=${NODES_IODA_AIRNOW:-"<nodes>1:ppn=1</nodes>"}
 export NODES_IODA_BUFR=${NODES_IODA_BUFR:-"<nodes>1:ppn=1</nodes>"}
 
 # ioda_mrms_refl
-export NODES_IODA_MRMS_REFL=${NODES_IODA_MRMS_REFL:-"<nodes>1:ppn=20</nodes>"}
+export NODES_IODA_MRMS_REFL=${NODES_IODA_MRMS_REFL:-"<nodes>1:ppn=40</nodes>"}
 
 # nonvar_bufrobs
 export WALLTIME_NONVAR_BUFROBS=${WALLTIME_NONVAR_BUFROBS:-"00:25:00"}
 
 # nonvar_reflobs
-export NODES_NONVAR_REFLOBS=${NODES_NONVAR_REFLOBS:-"<nodes>2:ppn=24</nodes>"}
+export NODES_NONVAR_REFLOBS=${NODES_NONVAR_REFLOBS:-"<nodes>1:ppn=40</nodes>"}
 export WALLTIME_NONVAR_REFLOBS=${WALLTIME_NONVAR_REFLOBS:-"00:25:00"}
 
 # ic
@@ -64,7 +72,11 @@ export NODES_IC=${NODES_IC:-"<nodes>1:ppn=40</nodes>"}
 export NODES_LBC=${NODES_LBC:-"<nodes>1:ppn=40</nodes>"}
 
 # prep_ic
-export NODES_PREP_IC=${NODES_PREP_IC:-"<nodes>1:ppn=1</nodes>"}
+if ${DO_ENSEMBLE:-false}; then
+  export NODES_PREP_IC=${NODES_PREP_IC:-"<nodes>1:ppn=40</nodes>"}
+else
+  export NODES_PREP_IC=${NODES_PREP_IC:-"<nodes>1:ppn=1</nodes>"}
+fi
 export WALLTIME_PREP_IC=${WALLTIME_PREP_IC:-"00:10:00"}
 
 # prep_lbc
@@ -75,15 +87,19 @@ export WALLTIME_PREP_LBC=${WALLTIME_PREP_LBC:-"00:30:00"}
 export NODES_DA=${NODES_DA:-"<nodes>1:ppn=40</nodes>"}
 
 # nonvar_cldana
-export NODES_NONVAR_CLDANA=${NODES_NONVAR_CLDANA:-"<nodes>2:ppn=20</nodes>"}
+export NODES_NONVAR_CLDANA=${NODES_NONVAR_CLDANA:-"<nodes>1:ppn=40</nodes>"}
 export WALLTIME_NONVAR_CLDANA=${WALLTIME_NONVAR_CLDANA:-"00:20:00"}
 
 # fcst
 export NODES_FCST=${NODES_FCST:-"<nodes>3:ppn=40</nodes>"}
 export WALLTIME_FCST=${WALLTIME_FCST:-"00:50:00"}
 
-# fcst
-export NODES_SAVE_FOR_NEXT=${NODES_SAVE_FOR_NEXT:-"<nodes>1:ppn=1</nodes>"}
+# save_for_next
+if ${DO_ENSEMBLE:-false}; then
+  export NODES_SAVE_FOR_NEXT=${NODES_SAVE_FOR_NEXT:-"<nodes>1:ppn=40</nodes>"}
+else
+  export NODES_SAVE_FOR_NEXT=${NODES_SAVE_FOR_NEXT:-"<nodes>1:ppn=1</nodes>"}
+fi
 export WALLTIME_SAVE_FOR_NEXT=${WALLTIME_SAVE_FOR_NEXT:-"00:50:00"}
 
 # ensmean

@@ -12,7 +12,7 @@ export EXPDIR=${OPSROOT}/exp/rrfs${WGF}
 export COMROOT=${OPSROOT}/com      # task input and output data as well as logs
 export DATAROOT=${OPSROOT}/stmp    # task workdirs ($DATA) which to be removed immediately upon task completion unless KEEPDATA=YES
 #
-export ZETA_LEVELS="L65.txt"
+export ZETA_LEVELS="L60.txt"
 #
 export DO_IODA=true
 export DO_JEDI=true
@@ -42,8 +42,7 @@ for i in {0..23};    do arr[$i]="03"; done # 3hr fcst
 for i in {0..23..12}; do arr[$i]="12"; done # 12hr fcst every 12hrs
 export FCST_LEN_HRS_CYCLES="${arr[*]}"
 export HISTORY_INTERVAL=1
-export MPASSIT_GROUP_TOTAL_NUM=1
-export UPP_GROUP_TOTAL_NUM=1
+export POST_GROUP_TOT_NUM=1 # num of groups, the final group absorbs leftovers, the first group contains the extra f000h file
 
 export IC_OFFSET=6
 export LBC_OFFSET=6
@@ -150,7 +149,7 @@ case ${MACHINE} in
     export NODES_IC="<nodes>1:ppn=160</nodes>"
     export NODES_LBC="<nodes>1:ppn=160</nodes>"
     export NODES_FCST="<nodes>1:ppn=160</nodes>"
-    export NODES_MPASSIT="<nodes>1:ppn=160</nodes>"
+    export NODES_MPASSIT="<nodes>1:ppn=40</nodes>"
     export NODES_UPP="<nodes>1:ppn=80</nodes>"
     export NODES_JEDIVAR="<nodes>1:ppn=80</nodes>"
     export NODES_IODA_MRMS_REFL="<nodes>1:ppn=80</nodes>"

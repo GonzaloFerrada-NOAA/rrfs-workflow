@@ -158,15 +158,16 @@ def header_end(xmlFile):
 
 def wflow_begin(xmlFile):
     realtime = os.getenv("REALTIME", "false").upper()
-    cyclethrottle = os.getenv("RETRO_CYCLETHROTTLE", "3")
-    taskthrottle = os.getenv("RETRO_TASKTHROTTLE", "30")
+    cyclethrottle = os.getenv("CYCLETHROTTLE", "3")
+    taskthrottle = os.getenv("TASKTHROTTLE", "30")
+    cyclelifespan = os.getenv("CYCLELIFESPAN", "2")
     machine = os.getenv('MACHINE').lower()
     if machine in ['wcoss2', 'derecho']:
         scheduler = 'pbspro'
     else:
         scheduler = 'slurm'
     if realtime == "TRUE":
-        text = f'<workflow realtime="T" scheduler="{scheduler}" cyclethrottle="26" cyclelifespan="01:00:00:00">'
+        text = f'<workflow realtime="T" scheduler="{scheduler}" cyclethrottle="{cyclethrottle}" cyclelifespan="{cyclelifespan}:00:00:00">'
     else:
         text = f'<workflow realtime="F" scheduler="{scheduler}" cyclethrottle="{cyclethrottle}" taskthrottle="{taskthrottle}">'
     xmlFile.write(f'\n{text}\n')
@@ -190,7 +191,17 @@ def wflow_log(xmlFile, log_fpath):
 def wflow_cycledefs(xmlFile, dcCycledef):
     text = ""
     for key, value in dcCycledef.items():
-        text = text + f'\n  <cycledef group="{key}">{value}</cycledef>'
+        if isinstance(value, dict):  # a dictionary value containing "valid_hours" or "exclude_hours"
+            if "valid_hours" in value:
+                valid_hours = value["valid_hours"]
+                mycycledef = value["cycledef"]
+                text = text + f'\n  <cycledef group="{key}" valid_hours="{valid_hours}">{mycycledef}</cycledef>'
+            else:
+                exclude_hours = value["exclude_hours"]
+                mycycledef = value["cycledef"]
+                text = text + f'\n  <cycledef group="{key}" exclude_hours="{exclude_hours}">{mycycledef}</cycledef>'
+        else:
+            text = text + f'\n  <cycledef group="{key}">{value}</cycledef>'
     xmlFile.write(f'{text}\n')
 
 # objTask

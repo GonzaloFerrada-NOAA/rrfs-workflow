@@ -3,6 +3,7 @@ import os
 import sys
 import hifiyaml4rrfs as hy
 import yamltools4rrfs as yt
+from datetime import datetime, timedelta
 
 args = sys.argv
 nargs = len(args) - 1
@@ -16,6 +17,7 @@ ytype = yfile.split(".", 1)[0]  # get the yaml file type: jedivar, getkf, hofx, 
 # get environmental variables
 analysisDate = os.getenv("analysisDate", "@analysisDate@")
 beginDate = os.getenv("beginDate", "@beginDate@")
+ENS_SIZE = os.getenv("ENS_SIZE", "30")
 HYB_WGT_STATIC = os.getenv("HYB_WGT_STATIC", "@HYB_WGT_STATIC@")
 HYB_WGT_ENS = os.getenv("HYB_WGT_ENS", "@HYB_WGT_ENS@")
 emptyObsSpaceAction = os.getenv("EMPTY_OBS_SPACE_ACTION", "@emptyObsSpaceAction@")
@@ -36,10 +38,21 @@ GSIBEC_LON_END = os.getenv("GSIBEC_LON_END", "@GSIBEC_LON_END@")
 GSIBEC_NORTH_POLE_LAT = os.getenv("GSIBEC_NORTH_POLE_LAT", "@GSIBEC_NORTH_POLE_LAT@")
 GSIBEC_NORTH_POLE_LON = os.getenv("GSIBEC_NORTH_POLE_LON", "@GSIBEC_NORTH_POLE_LON@")
 
+# determine the temporal grid for Gaussian Thinning
+time_mesh = 3
+THINNING_TIME_MESH = f"PT{time_mesh:02d}H"
+analysis_time = datetime.strptime(analysisDate, "%Y-%m-%dT%H:%M:%SZ")
+delta = timedelta(hours=time_mesh / 2)
+time_min = analysis_time - delta
+time_max = analysis_time + delta
+THINNING_TIME_MIN = time_min.strftime("%Y-%m-%dT%H:%M:%SZ")
+THINNING_TIME_MAX = time_max.strftime("%Y-%m-%dT%H:%M:%SZ")
+
 # replacements for the @VAR@ patterns
 replacements = {
     "analysisDate": f"{analysisDate}",
     "beginDate": f"{beginDate}",
+    "ENS_SIZE": f"{ENS_SIZE}",
     "HYB_WGT_STATIC": f"{HYB_WGT_STATIC}",
     "HYB_WGT_ENS": f"{HYB_WGT_ENS}",
     "emptyObsSpaceAction": f"{emptyObsSpaceAction}",
@@ -53,6 +66,9 @@ replacements = {
     "GSIBEC_LON_END": f"{GSIBEC_LON_END}",
     "GSIBEC_NORTH_POLE_LAT": f"{GSIBEC_NORTH_POLE_LAT}",
     "GSIBEC_NORTH_POLE_LON": f"{GSIBEC_NORTH_POLE_LON}",
+    "THINNING_TIME_MESH": f"{THINNING_TIME_MESH}",
+    "THINNING_TIME_MIN": f"{THINNING_TIME_MIN}",
+    "THINNING_TIME_MAX": f"{THINNING_TIME_MAX}",
 }
 
 # load the YAML data and complete the pattern replacement

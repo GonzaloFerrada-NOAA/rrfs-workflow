@@ -37,7 +37,7 @@ ${cpreq} "${FIXrrfs}"/jedi/obsop_name_map.yaml .
 ${cpreq} "${FIXrrfs}"/jedi/keptvars.yaml .
 ${cpreq} "${FIXrrfs}"/jedi/geovars.yaml .
 # if cold_start or not do_radar_ref, remove refl10cm and w from stream_list.atmosphere.analysis
-if [[ "${start_type}" == "cold"  ]] || ! ${DO_RADAR_REF} ; then
+if [[ "${start_type}" == "cold"  ]] || [[ ${DO_RADAR_REF} == "FALSE" ]]; then
   sed -i '$d;N;$d' stream_list/stream_list.atmosphere.analysis
 fi
 #
@@ -83,6 +83,20 @@ source "${USHrrfs}/copy_obs.sh" "jedivar"
 #  find ensemble forecasts based on user settings
 #
 source "${USHrrfs}/find_ensembles.sh"
+#
+# For HYB_ENS_TYPE=0, check number of ensemble files, if not enough, default to pure 3DVar
+#
+if (( HYB_ENS_TYPE == 0 )) ; then
+  ens_size=$(( 10#${ENS_SIZE} ))
+  ens_count=$(find ens -name "mem*.nc" | wc -l)
+  if (( ens_count < ens_size )); then
+     echo "Number of ensemble files is ${ens_count}, less than 30, default to 3DVar"
+     export HYB_WGT_ENS=0.0
+     export HYB_WGT_STATIC=1.0
+  else
+     echo "Found ${ens_count} ensemble files"
+  fi
+fi
 #
 #  link background
 #

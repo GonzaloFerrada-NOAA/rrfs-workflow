@@ -10,14 +10,8 @@ def prep_ic(xmlFile, expdir, do_ensemble=False, spinup_mode=0):
     #  0 = no parallel spinup cycles in the experiment
     #  1 = a spinup cycle
     # -1 = a prod cycle parallel to spinup cycles
-    meta_id = 'prep_ic'
     if spinup_mode == 1:
         cycledefs = 'spinup'
-        num_spinup_cycledef = os.getenv('NUM_SPINUP_CYCLEDEF', '1')
-        if num_spinup_cycledef == '2':
-            cycledefs = 'spinup,spinup2'
-        elif num_spinup_cycledef == '3':
-            cycledefs = 'spinup,spinup2,spinup3'
     else:
         cycledefs = 'prod'
     coldhrs = os.getenv('COLDSTART_CYCS', '03 15')
@@ -28,34 +22,20 @@ def prep_ic(xmlFile, expdir, do_ensemble=False, spinup_mode=0):
     dcTaskEnv = {
         'COLDSTART_CYCS': f'{coldhrs}',
         'SFC_UPDATE_CYCS': f'{sfc_update_cycs}',
+        'SFC_UPDATE_SOURCE_DIR': os.getenv('SFC_UPDATE_SOURCE_DIR'),
+        'DO_BLENDING': os.getenv('DO_BLENDING', 'FALSE'),
     }
     if spinup_mode != 0:
         dcTaskEnv['SPINUP_MODE'] = f'{spinup_mode}'
-    if not do_ensemble:
-        metatask = False
-        if spinup_mode == 1:
-            task_id = f'{meta_id}_spinup'
-        else:
-            task_id = f'{meta_id}'
-        meta_bgn = ""
-        meta_end = ""
-        ensindexstr = ""
-        ensdirstr = ""
+    if spinup_mode == 1:
+        task_id = 'prep_ic_spinup'
     else:
-        metatask = True
-        task_id = f'{meta_id}_m#ens_index#'
-        dcTaskEnv['ENS_INDEX'] = "#ens_index#"
-        meta_bgn = ""
-        meta_end = ""
+        task_id = 'prep_ic'
+
+    if do_ensemble:
         ens_size = int(os.getenv('ENS_SIZE', '2'))
-        ens_indices = ''.join(f'{i:03d} ' for i in range(1, int(ens_size) + 1)).strip()
-        meta_bgn = f'''
-<metatask name="{meta_id}">
-<var name="ens_index">{ens_indices}</var>'''
-        meta_end = f'\
-</metatask>\n'
-        ensindexstr = "_m#ens_index#"
-        ensdirstr = "/mem#ens_index#"
+        dcTaskEnv['ENS_SIZE'] = str(ens_size)
+
     # determine prep_ic type so that we know where to find correct satbias files
     do_jedi = os.getenv("DO_JEDI", "FALSE").upper()
     if do_ensemble and do_jedi == "TRUE":
@@ -78,16 +58,23 @@ def prep_ic(xmlFile, expdir, do_ensemble=False, spinup_mode=0):
     for hr in coldhrs:
         hr = f"{hr:0>2}"
         streqs = streqs + f"\n        <streq><left><cyclestr>@H</cyclestr></left><right>{hr}</right></streq>"
-        strneqs = strneqs + f"\n        <strneq><left><cyclestr>@H</cyclestr></left><right>{hr}</right></strneq>"
+        strneqs = strneqs + f"\n      <strneq><left><cyclestr>@H</cyclestr></left><right>{hr}</right></strneq>"
     streqs = streqs.lstrip('\n')
     strneqs = strneqs.lstrip('\n')
-    datadep_prod = f'''\n        <datadep age="00:05:00"><cyclestr offset="-{cyc_interval}:00:00">&COMROOT;/&NET;/&rrfs_ver;/&RUN;.@Y@m@d/@H/fcst/&WGF;{ensdirstr}/</cyclestr><cyclestr>mpasout.@Y-@m-@d_@H.00.00.nc</cyclestr></datadep>'''
-    datadep_spinup = f'''\n        <taskdep task="fcst_spinup" cycle_offset="-1:00:00"/>'''
+    if do_ensemble:
+        datadep_prod = ""
+        for i in range(1, int(ens_size) + 1):
+            memdirstr = f'/mem{i:03d}'
+            datadep_prod = datadep_prod + f'''\n      <datadep age="00:01:00"><cyclestr offset="-{cyc_interval}:00:00">&COMROOT;/&NET;/&rrfs_ver;/&RUN;.@Y@m@d/@H/fcst/&WGF;{memdirstr}/</cyclestr><cyclestr>mpasout.@Y-@m-@d_@H.00.00.nc</cyclestr></datadep>'''
+    else:
+        datadep_prod = f'''\n      <datadep age="00:01:00"><cyclestr offset="-{cyc_interval}:00:00">&COMROOT;/&NET;/&rrfs_ver;/&RUN;.@Y@m@d/@H/fcst/&WGF;/</cyclestr><cyclestr>mpasout.@Y-@m-@d_@H.00.00.nc</cyclestr></datadep>'''
+
+    datadep_spinup = f'''\n      <taskdep task="fcst_spinup" cycle_offset="-1:00:00"/>'''
     if spinup_mode == 0:  # no parallel spinup cycles
         datadep = datadep_prod
     elif spinup_mode == 1:  # a spinup cycle
         datadep = datadep_spinup
-    else:  # a prod cycle paralle to spinup cycles
+    else:  # spinup_mode == -1, i.e. a prod cycle paralle to spinup cycles
         datadep = "whatever"  # dependencies will be rewritten near the end of this file
 
     #
@@ -96,8 +83,8 @@ def prep_ic(xmlFile, expdir, do_ensemble=False, spinup_mode=0):
         # cold start cycles wait for the latest satbias updated from the -1h cycles
         spaces = " " * 6
         satbias_dep = '\n' + spaces + '<or>'
-        satbias_dep += '\n' + spaces + f' <taskdep task="jedivar" cycle_offset="-{cyc_interval}:00:00"/>'
-        satbias_dep += '\n' + spaces + f' <datadep><cyclestr offset="-{cyc_interval}:00:00">&COMROOT;/&NET;/&rrfs_ver;/&RUN;.@Y@m@d/@H/jedivar/&WGF;/satbias_jumpstart</cyclestr></datadep>'
+        satbias_dep += '\n' + spaces + f'  <taskdep task="jedivar" cycle_offset="-{cyc_interval}:00:00"/>'
+        satbias_dep += '\n' + spaces + f'  <datadep><cyclestr offset="-{cyc_interval}:00:00">&COMROOT;/&NET;/&rrfs_ver;/&RUN;.@Y@m@d/@H/jedivar/&WGF;/satbias_jumpstart</cyclestr></datadep>'
         satbias_dep += '\n' + spaces + '</or>'
     #
     timedep = ""
@@ -106,7 +93,10 @@ def prep_ic(xmlFile, expdir, do_ensemble=False, spinup_mode=0):
         starttime = get_cascade_env(f"STARTTIME_{task_id}".upper())
         timedep = f'\n   <timedep><cyclestr offset="{starttime}">@Y@m@d@H@M00</cyclestr></timedep>'
     if os.getenv('DO_IC_LBC', 'TRUE').upper() == "TRUE":
-        icdep = f'\n      <taskdep task="ic{ensindexstr}"/>'
+        if do_ensemble:
+            icdep = f'\n      <metataskdep metatask="ic"/>'
+        else:
+            icdep = f'\n      <taskdep task="ic"/>'
     else:
         icdep = ""
     #
@@ -120,9 +110,7 @@ def prep_ic(xmlFile, expdir, do_ensemble=False, spinup_mode=0):
       </or>{icdep}{satbias_dep}
     </and>
     <and>
-      <and>
 {strneqs}{datadep}
-      </and>
     </and>
    </or>
   </and>
@@ -135,7 +123,7 @@ def prep_ic(xmlFile, expdir, do_ensemble=False, spinup_mode=0):
             dependencies = f'''
   <dependency>
   <and>{timedep}
-   <taskdep task="ic{ensindexstr}"/>
+   <taskdep task="ic"/>
   </and>
   </dependency>'''
 
@@ -149,10 +137,10 @@ def prep_ic(xmlFile, expdir, do_ensemble=False, spinup_mode=0):
         for hr in prodswitch_hrs.split(' '):
             hr = f"{hr:0>2}"
             streqs = streqs + f"\n        <streq><left><cyclestr>@H</cyclestr></left><right>{hr}</right></streq>"
-            strneqs = strneqs + f"\n        <strneq><left><cyclestr>@H</cyclestr></left><right>{hr}</right></strneq>"
+            strneqs = strneqs + f"\n      <strneq><left><cyclestr>@H</cyclestr></left><right>{hr}</right></strneq>"
         streqs = streqs.lstrip('\n')
         strneqs = strneqs.lstrip('\n')
-        datadep_spinup = datadep_spinup.lstrip('\n')[2:]
+        datadep_spinup = datadep_spinup.lstrip('\n')
         dependencies = f'''
   <dependency>
   <and>{timedep}
@@ -164,14 +152,11 @@ def prep_ic(xmlFile, expdir, do_ensemble=False, spinup_mode=0):
 {datadep_spinup}
     </and>
     <and>
-      <and>
 {strneqs}{datadep_prod}
-      </and>
     </and>
    </or>
   </and>
   </dependency>'''
     #
-    xml_task(xmlFile, expdir, task_id, cycledefs, dcTaskEnv, dependencies,
-             metatask, meta_id, meta_bgn, meta_end, "PREP_IC")
+    xml_task(xmlFile, expdir, task_id, cycledefs, dcTaskEnv, dependencies, command_id="PREP_IC")
 # end of fcst --------------------------------------------------------

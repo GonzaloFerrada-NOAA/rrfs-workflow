@@ -4,6 +4,7 @@ declare -rx PS4='+ $(basename ${BASH_SOURCE[0]:-${FUNCNAME[0]:-"Unknown"}})[${LI
 set -x
 
 cpreq=${cpreq:-cpreq}
+prefix=${EXTRN_MDL_SOURCE%_NCO} # remove the trailing '_NCO' if any
 cd "${DATA}"  || exit 1
 #
 #  copy excutable and fix files for this mesh
@@ -25,6 +26,9 @@ dx=${MPASSIT_DX:-12000.0}
 ref_lat=${MPASSIT_REF_LAT:-"39.0"}
 ref_lon=${MPASSIT_REF_LON:-"-97.5"}
 #
+zeta_levels=${EXPDIR}/config/ZETA_LEVELS.txt
+nlevel=$(wc -l < "${zeta_levels}")
+ln -snf "${FIXrrfs}/${MESH_NAME}/${MESH_NAME}.invariant.nc_L${nlevel}_${prefix}" ./invariant.nc
 #
 # find forecst length for this cycle
 #
@@ -34,19 +38,12 @@ echo "forecast length for this cycle is ${fcst_len_hrs_thiscyc}"
 #
 # loop through forecast history files for this group
 #
-fhr_string=$( seq 0 $((10#${HISTORY_INTERVAL})) $((10#${fcst_len_hrs_thiscyc} )) | paste -sd ' ' )
-read -ra fhr_all <<< "${fhr_string}"  # convert fhr_string to an array
-num_fhrs=${#fhr_all[@]}
-group_total_num=$((10#${GROUP_TOTAL_NUM}))
-group_index=$((10#${GROUP_INDEX}))
-
-for (( ii=0; ii<"${num_fhrs}"; ii=ii+"${group_total_num}" )); do
-    i=$(( ii + "${group_index}" - 1 ))
-    if (( i >= num_fhrs )); then
+read -ra fhr_all <<< "${GROUP_HOURS}"  # convert string to array
+for fhr in "${fhr_all[@]}"; do
+    if (( 10#${fhr} > 10#${fcst_len_hrs_thiscyc} )); then
       break
     fi
     # get forecast hour and string
-    fhr=${fhr_all[$i]}
     CDATEp=$(${NDATE} "${fhr}" "${CDATE}" )
     timestr=$(date -d "${CDATEp:0:8} ${CDATEp:8:2}" +%Y-%m-%d_%H.%M.%S) 
     # decide the history files   
@@ -72,11 +69,11 @@ for (( ii=0; ii<"${num_fhrs}"; ii=ii+"${group_total_num}" )); do
       source prep_step
       ${MPI_RUN_CMD} ./mpassit.x namelist.mpassit
       # check the status, copy output to UMBRELLA_MPASSIT_DATA
-      if [[ -s "./mpassit.${timestr}.nc" ]]; then
+      if [[ -f "./mpassit.${timestr}.nc" ]] && (( $(stat -c%s "./mpassit.${timestr}.nc") > 104857600 )); then
         mv "./mpassit.${timestr}.nc" "${UMBRELLA_MPASSIT_DATA}/."
         mv namelist.mpassit "namelist.mpassit_${fhr}"
       else
-        echo "FATAL ERROR: failed to genereate mpassit.${timestr}.nc"
+        echo "FATAL ERROR: failed to generate mpassit.${timestr}.nc"
         err_exit
       fi
     else
