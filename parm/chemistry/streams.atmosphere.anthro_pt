@@ -1,0 +1,11 @@
+<immutable_stream name="anthro_pt_input"
+                  type="input"
+                  filename_template="anthro_pt.init.nc"
+                  input_interval="initial_only"
+                  io_type="netcdf,netcdf4"/>
+
+<immutable_stream name="anthro_pt_stack_group_input"
+                  type="input"
+                  filename_template="anthro_pt.stack_groups.init.nc"
+                  input_interval="initial_only"
+                  io_type="netcdf,netcdf4"/>

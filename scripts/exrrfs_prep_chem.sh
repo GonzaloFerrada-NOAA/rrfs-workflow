@@ -28,11 +28,13 @@ cd "${DATA}" || exit 1
 #
 fcst_len_hrs_cycles=${FCST_LEN_HRS_CYCLES:-"01 01"}
 my_fcst_length=$("${USHrrfs}/find_fcst_length.sh" "${fcst_len_hrs_cycles}" "${cyc}" )
+export FCST_LENGTH="${my_fcst_length}"
 echo "forecast length for this cycle is ${my_fcst_length}"
 #
 # ... Set some date variables
 #
 timestr=$(date -d "${CDATE:0:8} ${CDATE:8:2}" +%Y-%m-%d_%H.%M.%S)
+JJJ=$(date -d "${CDATE:0:8} ${CDATE:8:2}" +%j)
 YYYY=$(date -d "${CDATE:0:8} ${CDATE:8:2}" +%Y)
 MM=$(date -d "${CDATE:0:8} ${CDATE:8:2}" +%m)
 DD=$(date -d "${CDATE:0:8} ${CDATE:8:2}" +%d)
@@ -85,7 +87,10 @@ fi
 DOY_END=$(date -d "${CDATE:0:8} ${CDATE:8:2} + ${my_fcst_length} hours" +%j)  # Julian day
 #
 # Set the init/mesh file name and link here:\
-if [[ -r "${UMBRELLA_PREP_IC_DATA}"/init.nc ]]; then
+if [[ -r "${FIXrrfs}/${MESH_NAME}/${MESH_NAME}.static.nc" ]]; then
+   ln -sf "${FIXrrfs}/${MESH_NAME}/${MESH_NAME}.static.nc" init.nc
+   INIT_FILE=./init.nc
+elif [[ -r "${UMBRELLA_PREP_IC_DATA}"/init.nc ]]; then
    ln -sf "${UMBRELLA_PREP_IC_DATA}"/init.nc init.nc
    INIT_FILE=./init.nc
 elif [[ -r "${UMBRELLA_PREP_IC_DATA}"/mpasout.nc ]]; then
