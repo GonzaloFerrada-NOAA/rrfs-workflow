@@ -34,9 +34,9 @@ EMISFILE2_GRA2PES=${OUTDIR}/GRA2PES${GRA2PES_VERSION}_${GRA2PES_SECTOR}_${MESH_N
 #
 #
 EMIS_SECTOR_NEMO=(airports nonpt nonroad np_oilgas othar_all rail) # ag will move to online
-EMIS_SECTOR_NEMO_DAYTYPE=(2 6 4 4 2 4 2)
+EMIS_SECTOR_NEMO_DAYTYPE=(2 6 4 2 2 4 2)
 EMIS_SECTOR_NEMO_PT=(cmv_c1c2_12 cmv_c3_12 othpt pt_oilgas ptegu) 
-EMIS_SECTOR_NEMO_PT_DAYTYPE=(2 2 4 2 8)
+EMIS_SECTOR_NEMO_PT_DAYTYPE=(2 2 4 3 8)
 
 # the following 2 variable are not used
 #EMISFILE1_vinterp=${ANTHROEMIS_OUTPUTDIR}/${ANTHRO_EMISINV}${GRA2PES_VERSION}_${GRA2PES_SECTOR}_${MESH_NAME}_00to11Z_vinterp.nc
@@ -230,8 +230,8 @@ if [[ "${ANTHRO_EMISINV}" == *NEMO* ]]; then
    ncwa -O -a LAY,COL "${NEMO_EMISFILE_PT_PROCESSED}" "${NEMO_EMISFILE_PT_PROCESSED}"
    ncwa -O -a LAY,COL,TSTEP "${NEMO_STACKFILE_PROCESSED}" "${NEMO_STACKFILE_PROCESSED}"
    # Cast the stack parameters through time
-   ncap2 -O -s "e_ant_pt_in_unspc_fine[$Time,$TSTEP,$nanthro_pt]=e_ant_pt_in_unspc_fine" "${NEMO_EMISFILE_PT_PROCESSED}" "${NEMO_EMISFILE_PT_PROCESSED}"
-   ncap2 -O -s "e_ant_pt_in_unspc_coarse[$Time,$TSTEP,$nanthro_pt]=e_ant_pt_in_unspc_coarse" "${NEMO_EMISFILE_PT_PROCESSED}" "${NEMO_EMISFILE_PT_PROCESSED}"
+   ncap2 -O -s 'e_ant_pt_in_unspc_fine[$Time,$TSTEP,$nanthro_pt]=e_ant_pt_in_unspc_fine' "${NEMO_EMISFILE_PT_PROCESSED}" "${NEMO_EMISFILE_PT_PROCESSED}"
+   ncap2 -O -s 'e_ant_pt_in_unspc_coarse[$Time,$TSTEP,$nanthro_pt]=e_ant_pt_in_unspc_coarse' "${NEMO_EMISFILE_PT_PROCESSED}" "${NEMO_EMISFILE_PT_PROCESSED}"
    ncrename -v LATITUDE,STKLT -v LONGITUDE,STKLG "${NEMO_STACKFILE_PROCESSED}"
 #
 fi # IS NEMO listed as part of the ANTHRO EMIS inventory?

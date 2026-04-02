@@ -47,14 +47,15 @@ def prep_chem(xmlFile, expdir, do_ensemble=False, do_spinup=False):
        dcTaskEnv['KEEPDATA'] = get_cascade_env(f"KEEPDATA_{task_id}".upper()).upper()
     # dependencies
     timedep = ''
+    dependencies = ''
     if realtime.upper() == "TRUE":
         starttime = get_cascade_env(f"STARTTIME_{task_id}".upper())
         timedep = f'\n  <timedep><cyclestr offset="{starttime}">@Y@m@d@H@M00</cyclestr></timedep>'
 
-    dependencies = f'''
-  <dependency>
-     {timedep}
-  </dependency>'''
+        dependencies = f'''
+      <dependency>
+         {timedep}
+      </dependency>'''
 
     xml_task(xmlFile, expdir, task_id, cycledefs, dcTaskEnv, dependencies, metatask, meta_id, meta_bgn, meta_end, "PREP_CHEM")
 # end of prep_chem --------------------------------------------------------

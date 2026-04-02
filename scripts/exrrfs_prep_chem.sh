@@ -52,12 +52,12 @@ MMp=$(date -d "${CDATE:0:8} ${CDATE:8:2} - 1 day" +%m)
 DDp=$(date -d "${CDATE:0:8} ${CDATE:8:2} - 1 day" +%d)
 HHp=$(date -d "${CDATE:0:8} ${CDATE:8:2}- 1 day" +%H)
 #
-current_day=$(date -d "${YYYY}${MM}${DD}")
-current_hh=$(date -d "${HH}" +"%H")
+current_day="${YYYY}${MM}${DD}" #$(date -d "${YYYY}${MM}${DD}")
+current_hh="${HH}" #$(date -d "${HH}" +"%H")
 #
-prev_hh=$(date -d "$current_hh -24 hour" +"%H")
+#prev_hh=$(date -d "$current_hh -24 hour" +"%H")
 previous_day=$(date '+%C%y%m%d' -d "$current_day-1 days")
-previous_day="${previous_day} ${prev_hh}"
+previous_day="${previous_day} ${HH}"
 #
 if [[ ${DOW} -le 5 ]]; then
    DOW_STRING=weekdy

@@ -34,7 +34,7 @@ do
   if [[ "${EBB_DCYCLE}" == -1 ]]; then
      # Peristence emissions, only 24 forecasts are possible
      # Beyond that we need to repeat the emissions
-     timestr1=$(date +%Y%m%d%H -d "$previous_days + $ihour2 hours")
+     timestr1=$(date +%Y%m%d%H -d "$previous_day + $ihour2 hours")
   else
      # Either NOWcast (1 emission file per current forecast hour) or 
      # Forecasted emissions requiring the previous 24 hours
@@ -52,7 +52,7 @@ do
     ncrename -v SO2,e_bb_in_so2 "${EMISFILE2}"
     ncrename -v CH4,e_bb_in_ch4 "${EMISFILE2}"
     ncrename -v PM10,e_bb_in_smoke_coarse "${EMISFILE2}"
-    ncrename -v CO,e_bb_in_co "${EMISFILE2}"
+    #ncrename -v CO,e_bb_in_co "${EMISFILE2}"
     ncrename -v NH3,e_bb_in_nh3 "${EMISFILE2}"
     ln -sf "${EMISFILE2}" "${EMISFILE}"
   else
@@ -73,7 +73,7 @@ done
 #
 echo "Concatenating hourly files for use in forecast mode"
 # Concatenate for ebb2
-ncrcat "${UMBRELLA_PREP_CHEM_DATA}"/smoke.init.retro.*.00.00.nc "${UMBRELLA_PREP_CHEM_DATA}"/smoke.init.nc
+ncrcat -v frp_in,fre_in,e_bb_in_so2,e_bb_in_ch4,e_bb_in_smoke_coarse,e_bb_in_nh3 "${UMBRELLA_PREP_CHEM_DATA}"/smoke.init.retro.*.00.00.nc "${UMBRELLA_PREP_CHEM_DATA}"/smoke.init.nc
 #
 # Calculate previous 24 hour average HWP
 #
