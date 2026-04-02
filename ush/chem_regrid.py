@@ -34,9 +34,10 @@ _LOGGER = LOGGER.getChild("mpas-regrid")
 
 # Try to find the latest RAVE file available up to max_lookback_hours before target_time_str
 # to avoid setting zeroes when a particular hour file is missing.
-def find_latest_rave_file(input_dir, target_time_str, ebb_dcycle, max_lookback_hours=24):
+def find_latest_rave_file(input_dir, target_time_str, ebb_dcycle, dataset_name, max_lookback_hours=24):
     """Return list of files for the latest time <= target_time_str."""
-    fmt = "%Y%m%d%H"
+    fmt  = "%Y%m%d%H" # RAVE
+    fmt2 = "%Y%j"     # GOES
     target_time = datetime.strptime(target_time_str, fmt)
 
     for h in range(max_lookback_hours + 1):
@@ -48,11 +49,15 @@ def find_latest_rave_file(input_dir, target_time_str, ebb_dcycle, max_lookback_h
            _LOGGER.info("unrecognized ebb_dcycle, reverting to same-day, ebb_dcycle = 1")
            this_time = target_time + timedelta(hours=h)
 
-        this_str = this_time.strftime(fmt)
-        paths = glob.glob(input_dir + "/RAVE-HrlyEmiss-3km_v2r0_blend_s"+this_str+"*")
+        if dataset_name == "RAVE":
+           this_str = this_time.strftime(fmt)
+           paths = glob.glob(input_dir + "/RAVE-HrlyEmiss-3km_v2r0_blend_s"+this_str+"*")
+        elif dataset_name == "GOES":
+           this_str = this_time.strftime(fmt2)
+           paths = glob.glob(input_dir + "/OR_ABI-L2-AODC-M6_G18_s"+this_str+"*")
         if paths:
             if h > 0:
-                print(f"Missing RAVE file for {target_time_str}, using {this_str} instead")
+                print(f"Missing {dataset_name} file for {target_time_str}, using {this_str} instead")
             return paths
 
     # nothing found within lookback window
@@ -170,7 +175,8 @@ class AbstractRaveField(ABC, BaseModel):
         ...
 
 
-class RaveField1d(AbstractRaveField):
+
+class RaveField2d(AbstractRaveField):
 
     def create_dimension_collection(
         self, ncells_bounds: tuple[int, int]
@@ -183,7 +189,7 @@ class RaveField1d(AbstractRaveField):
         return target.reshape(-1)
 
 
-class RaveField2d(AbstractRaveField):
+class RaveField2d_plusTime(AbstractRaveField):
 
     def create_dimension_collection(
         self, ncells_bounds: tuple[int, int]
@@ -193,8 +199,7 @@ class RaveField2d(AbstractRaveField):
         )
 
     def reshape_field_data(self, target: np.ndarray) -> np.ndarray:
-        return target.reshape(1, -1)
-
+        return target.reshape(self.time_size, -1)
 
 class RaveField3d(AbstractRaveField):
 
@@ -203,33 +208,15 @@ class RaveField3d(AbstractRaveField):
     ) -> DimensionCollection:
         return DimensionCollection(
             value=(
-                self.time_dimension,
                 self.create_ncells_dimension(ncells_bounds),
                 self.nklevel_dimension,
             )
         )
 
     def reshape_field_data(self, target: np.ndarray) -> np.ndarray:
-        return target.reshape(1, -1, 1)
+        return target.reshape(-1, self.level_out_size)
 
-
-class RaveField2d_plusTime(AbstractRaveField):
-
-    def create_dimension_collection(
-        self, ncells_bounds: tuple[int, int]
-    ) -> DimensionCollection:
-        return DimensionCollection(
-            value=(
-                self.create_ncells_dimension(ncells_bounds),
-                self.time_dimension,
-            )
-        )
-
-    def reshape_field_data(self, target: np.ndarray) -> np.ndarray:
-        return target.reshape(-1, 12)
-
-
-class RaveField4d(AbstractRaveField):
+class RaveField3d_plusTime(AbstractRaveField):
 
     def create_dimension_collection(
         self, ncells_bounds: tuple[int, int]
@@ -241,9 +228,8 @@ class RaveField4d(AbstractRaveField):
                 self.time_dimension,
             )
         )
-
     def reshape_field_data(self, target: np.ndarray) -> np.ndarray:
-        return target.reshape(-1, self.level_out_size,self.time_size)
+        return target.reshape(-1, self.level_out_size, self.time_size)
 
 
 class RaveToMpasRegridContext(BaseModel):
@@ -301,24 +287,17 @@ class RaveToMpasRegridContext(BaseModel):
                     "time_size": self.time_size,
                     "num_cells": self.num_cells,
                 }
-                if field_name in ("clayfrac", "sandfrac", "uthres", "ssm"):
-                    app = RaveField1d.model_validate(init_data)
-                elif field_name in ("FRE", "FRP_MEAN", "RWC_denominator", "ecoregion_ID", "10h_dead_fuel_moisture_content"):
-                    app = RaveField2d.model_validate(init_data)
-                elif field_name in ("DBL_POLL", "ENL_POLL", "GRA_POLL", "RAG_POLL"):
-                    app = RaveField3d.model_validate(init_data)
-                elif self.dataset_name == 'NEMO_RWC' and field_name in ("PEC", "POC", "PMOTHR", "PMC"):
-                    app = RaveField3d.model_validate(init_data)
-                elif self.dataset_name == 'NEMO_ANTHRO' and field_name in ("PEC", "POC", "PMOTHR", "PMC"):
-                    app = RaveField4d.model_validate(init_data)
-                elif self.dataset_name == 'RAVE' and field_name in ("PM25", "NH3", "SO2", "TPM", "NOx", "CH4","CO"):
-                    app = RaveField3d.model_validate(init_data)
-                elif field_name in ("rdrag",):
-                    app = RaveField2d_plusTime.model_validate(init_data)
-                elif self.dataset_name == 'GRA2PES' and field_name in ("HC01", "PM25-PRI", "PM10-PRI", "h_agl","SO2","NH3","NOX","CO"):
-                    app = RaveField4d.model_validate(init_data)
+                if self.level_out_size == 0:
+                #2D
+                   if self.time_size == 0:
+                      app = RaveField2d.model_validate(init_data)
+                   else:
+                      app = RaveField2d_plusTime.model_validate(init_data)
                 else:
-                    raise NotImplementedError(field_name)
+                   if self.time_size == 0:
+                      app = RaveField3d.model_validate(init_data)
+                   else:
+                      app = RaveField3d_plusTime.model_validate(init_data)
                 rave_fields.append(app)
         _LOGGER.debug(f"{rave_fields=}")
         return tuple(rave_fields)
@@ -362,9 +341,14 @@ class RaveToMpasRegridProcessor:
             mpas_desc.to_scrip(str(self.context.scrip_path))
 
         print("create source grid")
+        if self.context.dataset_name == "GOES":
+           pathsrc="/scratch4/BMC/acomp/cheMPAS-Fire/input/grids/domain_latlons/goes19_abi_conus_interpolated_lat_lon.nc"
+        else:
+           pathsrc=self.context.src_path
+
         if self.context.x_corner_dim is None:
             self._src_gwrap = NcToGrid(
-                path=self.context.src_path,
+                path=pathsrc,
                 spec=GridSpec(
                     x_center=self.context.x_center,
                     y_center=self.context.y_center,
@@ -378,7 +362,7 @@ class RaveToMpasRegridProcessor:
             ).create_grid_wrapper()
         else:
             self._src_gwrap = NcToGrid(
-                path=self.context.src_path,
+                path=pathsrc,
                 spec=GridSpec(
                     x_center=self.context.x_center,
                     y_center=self.context.y_center,
@@ -401,24 +385,32 @@ class RaveToMpasRegridProcessor:
         self._dst_mesh = dst_mesh
 
 # Check for extra dims beyond lat/lon
-        if self.context.level_out_size > 1 and self.context.time_size > 1:
-            self._dst_field = esmpy.Field(
-                dst_mesh, name="dst", meshloc=esmpy.MeshLoc.ELEMENT, ndbounds=(self.context.level_out_size, self.context.time_size)
-            )
-        elif self.context.level_out_size > 1 and self.context.time_size == 1:
-            self._dst_field = esmpy.Field(
-                dst_mesh, name="dst", meshloc=esmpy.MeshLoc.ELEMENT, ndbounds=(self.context.level_out_size,)
-            )
-        elif self.context.level_out_size == 1 and self.context.time_size > 1:
-            self._dst_field = esmpy.Field(
-                dst_mesh, name="dst", meshloc=esmpy.MeshLoc.ELEMENT, ndbounds=(self.context.time_size,)
-            )
+        _LOGGER.info("create destination field")
+        if self.context.level_out_size == 0:
+        #2D
+           if self.context.time_size == 0:
+              # 2D, static in Time
+              self._dst_field = esmpy.Field(
+                  dst_mesh, name="dst", meshloc=esmpy.MeshLoc.ELEMENT,
+               )
+           else:
+              # 2D + Time
+              self._dst_field = esmpy.Field(
+                  dst_mesh, name="dst", meshloc=esmpy.MeshLoc.ELEMENT, ndbounds=(self.context.time_size,)
+               )
         else:
-            _LOGGER.info("create destination field")
-            self._dst_field = esmpy.Field(
-                dst_mesh, name="dst", meshloc=esmpy.MeshLoc.ELEMENT
-            )
-
+        #3D
+           if self.context.time_size == 0:
+              # 3D, static in Time
+              self._dst_field = esmpy.Field(
+                  dst_mesh, name="dst", meshloc=esmpy.MeshLoc.ELEMENT, ndbounds=(self.context.level_out_size,)
+              )
+           else:
+              # 3D + Time
+              self._dst_field = esmpy.Field(
+                  dst_mesh, name="dst", meshloc=esmpy.MeshLoc.ELEMENT, ndbounds=(self.context.level_out_size, self.context.time_size)
+              )
+# Check for weights
         _LOGGER.info("create regridder")
         if self.context.weight_path.exists():
             _LOGGER.info("create regridder from file")
@@ -481,15 +473,18 @@ class RaveToMpasRegridProcessor:
         if self.context.rank == 0:
             with open_nc(self.context.new_dst_path, mode="w", clobber=True, parallel=False) as dst_nc:
                 dst_nc.createDimension("nCells", self.context.num_cells)
-                dst_nc.createDimension(self.context.level_out_name, self.context.level_out_size)
-                dst_nc.createDimension("StrLen", 64)
-                if self.context.time_size > 1:
-                    dst_nc.createDimension("Time", self.context.time_size)
-                elif self.context.time_size == 1:
-                    dst_nc.createDimension("Time")
+                if self.context.level_out_size > 0:
+                   dst_nc.createDimension(self.context.level_out_name,level_out_size)
                 else:
-                    _LOGGER.info("Not creating a time dimension")
+                   print("not creating level dimension in the output file")
+                dst_nc.createDimension("StrLen", 64)
+                if self.context.time_size > 0:
+                    dst_nc.createDimension("Time", self.context.time_size)
+                else:
+                    print("not creating time dimension in the output file")
+
                 dst_nc.setncattr("created_at", str(datetime.now(timezone.utc)))
+                dst_nc.setncattr("interpolation_method",self.context.InterpMethod)
                 dst_nc.setncattr("src_path", str(self.context.src_path))
                 dst_nc.setncattr("dst_path", str(self.context.dst_path))
 
@@ -497,7 +492,7 @@ class RaveToMpasRegridProcessor:
                     if self.context.dataset_name in ("RAVE"):
                         for varname in ("latCell", "lonCell", "areaCell", "xtime"):
                             copy_nc_variable(src_nc, dst_nc, varname, copy_data=True)
-                    elif self.context.dataset_name in ("FENGSHA_2D"):
+                    elif self.context.dataset_name in ("FENGSHA_2D","GOES"):
                         for varname in ("latCell", "lonCell"):
                             copy_nc_variable(src_nc, dst_nc, varname, copy_data=True)
                     else:
@@ -523,9 +518,17 @@ class RaveToMpasRegridProcessor:
                 if self.context.dataset_name == "RAVE" and rave_field.name in ("FRP_MEAN", "FRE"):
                     area = np.asarray(ds.variables['areaCell'])
                     area_subset = area[reconciled_bounds[0]:reconciled_bounds[1]]
+                if self.context.dataset_name != 'GOES':
+                    for k, v in rave_field.attrs.items():
+                       setattr(var, k, v)
+                if rave_field.name == 'AOD':
+                   type_to_use = np.float32
+                else:
+                   type_to_use = rave_field.dtype
+
                 var = ds.createVariable(
                     rave_field.name,
-                    rave_field.dtype,
+                    type_to_use,
                     [dim.name[0] for dim in dims.value],
                     fill_value=rave_field.fill_value,
                 )
@@ -683,47 +686,48 @@ class RaveToMpasRegridProcessor:
 
     def create_src_field_wrapper(self, field_name: str) -> FieldWrapper:
         _LOGGER.info("create source field")
-        if self.context.dataset_name == "GRA2PES" and field_name in ("PM25-PRI", "PM10-PRI", "HC01", "h_agl","SO2","CO","NH3","NOX"):
-            if field_name in ("h_agl",):
-                src_fwrap = NcToField(
-                    path=self.context.src_path,
-                    name=field_name,
-                    gwrap=self.get_src_gwrap(),
-                    dim_time=(self.context.time_name,),
-                    dim_level=('bottom_top_stag',),
-                ).create_field_wrapper()
-            else:
-                src_fwrap = NcToField(
-                    path=self.context.src_path,
-                    name=field_name,
-                    gwrap=self.get_src_gwrap(),
-                    dim_time=(self.context.time_name,),
-                    dim_level=(self.context.level_in_name,),
-                ).create_field_wrapper()
-        elif self.context.dataset_name == "NEMO_ANTHRO":
-            src_fwrap = NcToField(
-                path=self.context.src_path,
-                name=field_name,
-                gwrap=self.get_src_gwrap(),
-                dim_time=(self.context.time_name,),
-                dim_level=(self.context.level_in_name,),
-            ).create_field_wrapper()
-
-        elif field_name in ("clayfrac", "sandfrac", "uthres", "ssm"):
-            src_fwrap = NcToField(
-                path=self.context.src_path,
-                name=field_name,
-                gwrap=self.get_src_gwrap(),
-                dim_time=None,
-                dim_level=(self.context.level_in_name,),
-            ).create_field_wrapper()
+        if self.context.dataset_name == "GRA2PES" and field_name in ("h_agl",): # Special case for staggered grid
+           src_fwrap = NcToField(
+               path=self.context.src_path,
+               name=field_name,
+               gwrap=self.get_src_gwrap(),
+               dim_time=(self.context.time_name,),
+               dim_level=('bottom_top_stag',),
+           ).create_field_wrapper()
+        elif self.context.level_in_name == "None":
+           if self.context.time_name == "None":
+              src_fwrap = NcToField(
+                  path=self.context.src_path,
+                  name=field_name,
+                  gwrap=self.get_src_gwrap(),
+                  dim_time=None,
+                  dim_level=None,
+              ).create_field_wrapper()
+           else:
+              src_fwrap = NcToField(
+                  path=self.context.src_path,
+                  name=field_name,
+                  gwrap=self.get_src_gwrap(),
+                  dim_time=(self.context.time_name,),
+                  dim_level=None,
+              ).create_field_wrapper()
         else:
-            src_fwrap = NcToField(
-                path=self.context.src_path,
-                name=field_name,
-                gwrap=self.get_src_gwrap(),
-                dim_time=(self.context.time_name,),
-            ).create_field_wrapper()
+           if self.context.time_name == "None":
+              src_fwrap = NcToField(
+                  path=self.context.src_path,
+                  name=field_name,
+                  gwrap=self.get_src_gwrap(),
+                  dim_time=None,
+                  dim_level=(self.context.level_in_name,),
+              ).create_field_wrapper()
+           else:
+              src_fwrap = NcToField(
+                  path=self.context.src_path,
+                  name=field_name,
+                  gwrap=self.get_src_gwrap(),
+                  dim_time=(self.context.time_name,),
+                  dim_level=(self.context.level_in_name,),
+              ).create_field_wrapper()
         # Get the area from the RAVE file, need to convert from /grid to /m2
         if (self.context.dataset_name == "RAVE" and field_name in ("PM25", "NH3", "SO2", "FRE", "FRP_MEAN", "TPM", "CH4", "CO", "NOx")):
             area_fwrap = NcToField(
@@ -762,6 +766,19 @@ class RaveToMpasRegridProcessor:
             conv_aer = 1.0
 
         src_data = src_fwrap.value.data
+
+        #if self.context.dataset_name == "GOES":
+        #   src_data = src_data.astype(np.float32)
+        #   mask = (src_data >= np.max(src_data))
+        #   with open_nc(self.context.src_path, mode="r") as ds:
+        #      var = ds.variables[field_name]
+        #      scale = var.getncattr('scale_factor').astype(float)
+        #      offset = var.getncattr('add_offset').astype(float)
+        #      print(f"Scale: {scale}, Offset: {offset}")
+        #   src_data[:] = (scale * src_data[:]) + offset
+        #   src_data[mask] = np.nan
+        #   print("max value of data is " + str(np.nanmax(src_data)))
+
         if self.context.dataset_name == "RAVE" and field_name in ("PM25", "TPM"):
             # If RAVE aerosol emissions, convert from kg/hr to ug/m2/s
             src_data[:] = np.where(src_data < 0.0, 0.0, src_data * 1.e3 / area_data[:, :, np.newaxis] / 3600.)
@@ -775,6 +792,9 @@ class RaveToMpasRegridProcessor:
             src_data[:] = np.where(src_data < 0.0, 0.0, conv_aer * src_data)
 
         src_data[:] = np.where(np.isnan(src_data), 0.0, src_data)
+        # Put it back?
+        #src_fwrap.value.data[:] = src_data
+
         return src_fwrap
 
     def get_src_gwrap(self) -> GridWrapper:
@@ -1061,7 +1081,33 @@ def main() -> None:
         time_name = "time"
         time_size = 1
         InterpMethod = "CONSERVE"
-
+    elif dataset_name == "GOES":
+        field_names = ("AOD",)
+        x_center = "longitude"
+        y_center = "latitude"
+        x_dim = "x"
+        y_dim = "y"
+        x_corner = None
+        y_corner = None
+        x_corner_dim = None
+        y_corner_dim = None
+        level_in_name = "None"
+        level_out_name = "None"
+        level_out_size = 0
+        time_name = "None"
+        time_size = 0
+        InterpMethod = "BILINEAR"
+        dates_needed = []
+        for i in range(25):
+            if ebb_dcycle == 1: # Same-day emissions
+                x = datetime(int(YYYY), int(MM), int(DD), int(HH), 0, 0) + timedelta(hours=i)
+            elif ebb_dcycle == -1 or ebb_dcycle == 2: # Persistence (-1) or forecasted (2) needs prev 24 hours 
+                x = datetime(int(YYYY), int(MM), int(DD), int(HH), 0, 0) - timedelta(hours=i)
+            else:
+                _LOGGER.info("EBB_DCYLE selection not recognized, reverting to same day, ebb_dcycle = 1")
+                x = datetime(int(YYYY), int(MM), int(DD), int(HH), 0, 0) - timedelta(hours=i)
+            y = x.strftime("%Y%m%d%H")
+            dates_needed.append(y)
     elif dataset_name == "GRA2PES":
         field_names = ("PM25-PRI", "PM10-PRI","SO2","CO","NOX","NH3","h_agl")  # ,"HC01"=methane BAQMS, summer, 2025
         x_center = "XLONG"  # "XLONG_M"
@@ -1331,6 +1377,67 @@ def main() -> None:
             processor.process_ngfs_file(ngfs_path, resolution=0.01)
 
         _LOGGER.info("NGFS success")
+    elif dataset_name == "GOES":
+        processor = None
+        #for date_to_process in dates_needed:
+        date_to_process=dates_needed[0]
+        rave_paths = find_latest_rave_file(input_dir, date_to_process, -1, dataset_name, max_lookback_hours=24)
+        if not rave_paths:
+            print(f"No matching GOES files found for {date_to_process} (even after lookback).")
+            exit()
+
+        print('Reading GOES file:', rave_paths)
+        rave_path = rave_paths[0]
+        new_dst_path = Path(output_dir + "/" + mesh_name + "-GOES-" + date_to_process + ".nc")
+        # --- OPTIMIZATION START ---
+        if processor is None:
+            # FIRST PASS: Full Initialization
+            # This pays the "expensive" cost of loading weights/grids, but only once.
+
+            context = RaveToMpasRegridContext(
+                dataset_name=dataset_name,
+                src_path=rave_path,
+                dst_path=dst_path,
+                new_dst_path=new_dst_path,
+                desc_stats_out=desc_stats_out,
+                weight_path=weight_path,
+                InterpMethod=InterpMethod,
+                scrip_path=scrip_path,
+                num_cells=num_cells,
+                mesh_name=mesh_name,
+                field_names=field_names,
+                x_center=x_center,
+                y_center=y_center,
+                x_dim=x_dim,
+                y_dim=y_dim,
+                x_corner=x_corner,
+                y_corner=y_corner,
+                x_corner_dim=x_corner_dim,
+                y_corner_dim=y_corner_dim,
+                level_in_name=level_in_name,
+                level_out_name=level_out_name,
+                level_out_size=level_out_size,
+                time_name=time_name,
+                time_size=time_size
+
+            )
+            processor = RaveToMpasRegridProcessor(context=context)
+            processor.initialize()
+        else:
+            # SUBSEQUENT PASSES: Hot Swap
+            # Just update the paths in the existing context.
+            # The grids and regridder (weights) remain loaded in memory.
+            processor.context.src_path = rave_path
+            processor.context.new_dst_path = new_dst_path
+        # Run the regridding (Fast)
+        processor.run()
+        # --- OPTIMIZATION END ---
+                # Only finalize after ALL files are done
+        if processor:
+            processor.finalize()
+
+        _LOGGER.info("success")
+
 
     elif dataset_name == "FMC":
         for date_to_process in dates_needed:
