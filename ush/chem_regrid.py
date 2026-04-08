@@ -11,8 +11,7 @@ import os
 import esmpy
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel, computed_field
-from pyremap import MpasCellMeshDescriptor
+from pydantic import BaseModel
 
 from regrid_wrapper.context.comm import COMM, reconcile_bounds
 from regrid_wrapper.context.logging import LOGGER
@@ -61,7 +60,7 @@ def find_latest_rave_file(input_dir, target_time_str, ebb_dcycle, max_lookback_h
 def create_ngfs_sparse_mesh(lat_1d, lon_1d, resolution=0.01):
     """
     Creates an esmpy.Mesh dynamically from 1-D point source data.
-    Calculates the 4 corners of a square cell of size `resolution` 
+    Calculates the 4 corners of a square cell of size `resolution`
     around each center point in memory.
     This is the best approach since NGFS data are point-source (1-D),
     but we rarely have more than 1000 fires in the domain, so we
@@ -125,7 +124,6 @@ class AbstractRaveField(ABC, BaseModel):
     level_out_size: int
     time_size: int
 
-    @computed_field
     @cached_property
     def time_dimension(self) -> Dimension:
         return Dimension(
@@ -137,7 +135,6 @@ class AbstractRaveField(ABC, BaseModel):
             coordinate_type="time",
         )
 
-    @computed_field
     @cached_property
     def nklevel_dimension(self) -> Dimension:
         return Dimension(
@@ -276,7 +273,6 @@ class RaveToMpasRegridContext(BaseModel):
 
     rank: int = COMM.rank
 
-    @computed_field
     @cached_property
     def rave_fields(self) -> tuple[AbstractRaveField, ...]:
         rave_fields = []
@@ -341,6 +337,7 @@ class FileDesc(BaseModel):
 
 
 class RaveToMpasRegridProcessor:
+    _dst_mesh: esmpy.Mesh | None = None
 
     def __init__(self, context: RaveToMpasRegridContext) -> None:
         self.context = context
@@ -348,20 +345,21 @@ class RaveToMpasRegridProcessor:
         self._regridder: esmpy.Regrid | None = None
         self._dst_field: esmpy.Field | None = None
         self._src_gwrap: GridWrapper | None = None
-        self._dst_mesh: esmpy.Mesh | None = None
 
     def initialize(self) -> None:
         _LOGGER.info(f"initialize: {self.context=}")
         esmpy.Manager(debug=True)
 
-        if not self.context.scrip_path.exists() and self.context.rank == 0:
-            _LOGGER.info("writing mpas scrip grid")
-            mpas_desc = MpasCellMeshDescriptor(
-                str(self.context.dst_path), self.context.mesh_name + ".init"
-            )
-            mpas_desc.to_scrip(str(self.context.scrip_path))
+        # if not self.context.scrip_path.exists() and self.context.rank == 0:
+        #     _LOGGER.info("writing mpas scrip grid")
+        #     from pyremap import MpasCellMeshDescriptor
+        #
+        #     mpas_desc = MpasCellMeshDescriptor(
+        #         str(self.context.dst_path), self.context.mesh_name + ".init"
+        #     )
+        #     mpas_desc.to_scrip(str(self.context.scrip_path))
 
-        print("create source grid")
+        _LOGGER.info("create source grid")
         if self.context.x_corner_dim is None:
             self._src_gwrap = NcToGrid(
                 path=self.context.src_path,
@@ -394,11 +392,15 @@ class RaveToMpasRegridProcessor:
         _LOGGER.info("create source field")
         src_fwrap = self.create_src_field_wrapper(self.context.rave_fields[0].name)
 
-        _LOGGER.info("create destination mesh")
-        dst_mesh = esmpy.Mesh(
-            filename=str(self.context.scrip_path), filetype=esmpy.FileFormat.SCRIP
-        )
-        self._dst_mesh = dst_mesh
+        if self._dst_mesh is None:
+            _LOGGER.info("create destination mesh")
+            # dst_mesh = esmpy.Mesh(
+            #     filename=str(self.context.scrip_path), filetype=esmpy.FileFormat.SCRIP
+            # )
+            self._dst_mesh = esmpy.Mesh(
+                filename=str(self.context.scrip_path), filetype=esmpy.FileFormat.UGRID, meshname="grid_topology"
+            )
+        dst_mesh = self._dst_mesh
 
 # Check for extra dims beyond lat/lon
         if self.context.level_out_size > 1 and self.context.time_size > 1:
@@ -523,6 +525,7 @@ class RaveToMpasRegridProcessor:
                 if self.context.dataset_name == "RAVE" and rave_field.name in ("FRP_MEAN", "FRE"):
                     area = np.asarray(ds.variables['areaCell'])
                     area_subset = area[reconciled_bounds[0]:reconciled_bounds[1]]
+                _LOGGER.info(f"creating variable {rave_field.name=}")
                 var = ds.createVariable(
                     rave_field.name,
                     rave_field.dtype,
@@ -532,6 +535,7 @@ class RaveToMpasRegridProcessor:
                 for k, v in rave_field.attrs.items():
                     setattr(var, k, v)
 
+                _LOGGER.info(f"setting variable data {rave_field.name=}")
                 # Multiply FRE/FRP by output area so it is back to W or J*s
                 if self.context.dataset_name == "RAVE" and rave_field.name in ("FRP_MEAN", "FRE"):
                     set_variable_data(
@@ -547,6 +551,7 @@ class RaveToMpasRegridProcessor:
                         rave_field.reshape_field_data(dst_field.data),
                         collective=True,
                     )
+            _LOGGER.info(f"finished writing field to netcdf {rave_field.name=}")
             src_fwrap.value.destroy()
             del src_fwrap
 
@@ -622,29 +627,29 @@ class RaveToMpasRegridProcessor:
                 src_fwrap_p25.value.destroy()
                 del src_fwrap_p25
 
-        if self.context.rank == 0:
-            field_names = tuple(ii.name for ii in self.context.rave_fields)
-            targets = [
-                FileDesc(
-                    path=self.context.new_dst_path,
-                    origin="dst",
-                    field_names=field_names,
-                ),
-                FileDesc(
-                    path=self.context.src_path,
-                    origin="src",
-                    field_names=field_names,
-                ),
-            ]
-            data_frame = self.create_desc_stuff(targets)
-            data_frame.to_csv(self.context.desc_stats_out, index=False)
+        # if self.context.rank == 0:
+        #     field_names = tuple(ii.name for ii in self.context.rave_fields)
+        #     targets = [
+        #         FileDesc(
+        #             path=self.context.new_dst_path,
+        #             origin="dst",
+        #             field_names=field_names,
+        #         ),
+        #         FileDesc(
+        #             path=self.context.src_path,
+        #             origin="src",
+        #             field_names=field_names,
+        #         ),
+        #     ]
+        #     data_frame = self.create_desc_stuff(targets)
+        #     data_frame.to_csv(self.context.desc_stats_out, index=False)
 
     def finalize(self) -> None:
         _LOGGER.info("finalizing")
         self._regridder.destroy()
         self._dst_field.destroy()
         self._src_gwrap.value.destroy()
-        self._dst_mesh.destroy()
+        # self._dst_mesh.destroy()
 
     def create_desc_stuff(self, targets: Iterable[FileDesc]) -> pd.DataFrame:
         _LOGGER.info("entering create_desc_stuff")
@@ -754,10 +759,10 @@ class RaveToMpasRegridProcessor:
                 conv_aer = 1.0
         elif self.context.dataset_name == "NEMO_RWC" and field_name in ("PEC","POC","PMOTHR","PMC"):
             # Convert g/s/km2 (on 1km grid) to ug/m2/s -->
-            conv_aer = 1.0 
+            conv_aer = 1.0
         elif self.context.dataset_name == "NEMO_ANTHRO" and field_name in ("PEC","POC","PMOTHR","PMC"):
-            # Convert g/s/km2 to ug/m2/s --> 
-            conv_aer = 1.0 
+            # Convert g/s/km2 to ug/m2/s -->
+            conv_aer = 1.0
         else:
             conv_aer = 1.0
 
@@ -797,16 +802,17 @@ class RaveToMpasRegridProcessor:
         _LOGGER.info("Initializing MPAS Destination Mesh (Once)")
         esmpy.Manager(debug=True)
 
-        if not self.context.scrip_path.exists() and self.context.rank == 0:
-            _LOGGER.info("writing mpas scrip grid")
-            mpas_desc = MpasCellMeshDescriptor(
-                str(self.context.dst_path), self.context.mesh_name + ".init"
-            )
-            mpas_desc.to_scrip(str(self.context.scrip_path))
+        # if not self.context.scrip_path.exists() and self.context.rank == 0:
+        #     _LOGGER.info("writing mpas scrip grid")
+        #     mpas_desc = MpasCellMeshDescriptor(
+        #         str(self.context.dst_path), self.context.mesh_name + ".init"
+        #     )
+        #     mpas_desc.to_scrip(str(self.context.scrip_path))
 
         _LOGGER.info("create destination mesh")
         dst_mesh = esmpy.Mesh(
-            filename=str(self.context.scrip_path), filetype=esmpy.FileFormat.SCRIP
+            filename=str(self.context.scrip_path), filetype=esmpy.FileFormat.UGRID,
+            meshname="grid_topology"
         )
 
         # Create destination field (using logic from your original initialize method)
@@ -958,8 +964,14 @@ def main() -> None:
     output_dir = sys.argv[4]  # Top directory of output data
     weight_dir = sys.argv[5]  # Directory that contains the regrid weights
     cycle = sys.argv[6]  # Cycle Time, YYYYMMDDHH
+    try:
+        scrip_path = Path(sys.argv[7])  # Path to the input SCRIP/UGRID domain grid file
+        dst_path = Path(sys.argv[8])  # Path to the destination grid (e.g., init.nc)
+    except IndexError:
+        scrip_path = None
+        dst_path = None
 
-    #mesh_name  = os.getenv('MESH_NAME') 
+    #mesh_name  = os.getenv('MESH_NAME')
     ebb_dcycle = int(os.getenv('EBB_DCYCLE'))
     fcst_length= int(os.getenv('FCST_LENGTH'))
     mesh_name  = os.getenv('MESH_NAME')
@@ -971,9 +983,11 @@ def main() -> None:
     #    scrip_path = testpath
     # else:
     # FOR NOW, ALWAYS CREATE SCRIP
-    scrip_path = Path(workdir + "/mpas_" + dataset_name + "-" + mesh_name + "_scrip.nc")
+    if scrip_path is None:
+        scrip_path = Path(workdir + "/mpas_" + dataset_name + "-" + mesh_name + "_scrip.nc")
     #
-    dst_path = Path(workdir + "/init.nc")
+    if dst_path is None:
+        dst_path = Path(workdir + "/init.nc")
     desc_stats_out = Path(workdir + "/desc_stats-" + cycle + ".csv")
     #
     YYYY = cycle[0:4]
@@ -1038,7 +1052,7 @@ def main() -> None:
         for i in range(25): # GAF retro current day emissions
             if ebb_dcycle == 1: # Same-day emissions
                 x = datetime(int(YYYY), int(MM), int(DD), int(HH), 0, 0) + timedelta(hours=i)
-            elif ebb_dcycle == -1 or ebb_dcycle == 2: # Persistence (-1) or forecasted (2) needs prev 24 hours 
+            elif ebb_dcycle == -1 or ebb_dcycle == 2: # Persistence (-1) or forecasted (2) needs prev 24 hours
                 x = datetime(int(YYYY), int(MM), int(DD), int(HH), 0, 0) - timedelta(hours=i)
             else:
                 _LOGGER.info("EBB_DCYLE selection not recognized, reverting to same day, ebb_dcycle = 1")
@@ -1218,7 +1232,9 @@ def main() -> None:
     weight_path = Path(weight_dir + "/weights_" + dataset_name + "-to-" + "mpas_" + mesh_name + "_" + InterpMethod + ".nc")
 
     if dataset_name == "RAVE":
+        processor = None
         for date_to_process in dates_needed:
+            _LOGGER.info(f"RAVE processing {date_to_process=}")
             processor = None
             rave_paths = find_latest_rave_file(input_dir, date_to_process, ebb_dcycle, max_lookback_hours=24)
             #rave_paths = glob.glob(input_dir + "/RAVE-HrlyEmiss-3km_v2r0_blend_s" + date_to_process + "*")
@@ -1226,16 +1242,17 @@ def main() -> None:
             #    print("No matching files found for " + input_dir + "/RAVE-HrlyEmiss-3km_v2r0_blend_s" + date_to_process + "*")
             #    continue
             if not rave_paths:
-                print(f"No matching files found for {date_to_process} (even after lookback).")
+                _LOGGER.warn(
+                    f"No matching files found for {date_to_process} (even after lookback).")
                 continue
 
-            print('Reading RAVE file:', rave_paths)
+            _LOGGER.info(f'Reading RAVE file: {rave_paths=}')
             rave_path = rave_paths[0]
             new_dst_path = Path(output_dir + "/" + mesh_name + "-RAVE-" + date_to_process + ".nc")
-          
-            if processor is None:
 
-                # FIRST PASS: Full Initialization
+            # --- OPTIMIZATION START ---
+            if processor is None:
+                _LOGGER.info("FIRST PASS: Full Initialization")
                 # This pays the "expensive" cost of loading weights/grids, but only once.
 
                 context = RaveToMpasRegridContext(
@@ -1269,7 +1286,7 @@ def main() -> None:
                 processor = RaveToMpasRegridProcessor(context=context)
                 processor.initialize()
             else:
-                # SUBSEQUENT PASSES: Hot Swap
+                _LOGGER.info("SUBSEQUENT PASSES: Hot Swap")
                 # Just update the paths in the existing context.
                 # The grids and regridder (weights) remain loaded in memory.
                 processor.context.src_path = rave_path
@@ -1277,9 +1294,9 @@ def main() -> None:
             # Run the regridding (Fast)
             processor.run()
             # --- OPTIMIZATION END ---
-                    # Only finalize after ALL files are done
-            if processor:
-                processor.finalize()
+            # Only finalize after ALL files are done
+        if processor:
+            processor.finalize()
 
             _LOGGER.info("success")
 

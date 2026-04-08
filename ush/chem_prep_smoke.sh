@@ -36,11 +36,11 @@ do
      # Beyond that we need to repeat the emissions
      timestr1=$(date +%Y%m%d%H -d "$previous_day + $ihour2 hours")
   else
-     # Either NOWcast (1 emission file per current forecast hour) or 
+     # Either NOWcast (1 emission file per current forecast hour) or
      # Forecasted emissions requiring the previous 24 hours
      timestr1=$(date +%Y%m%d%H -d "$current_day + $ihour hours")
   fi
- 
+
   timestr2=$(date +%Y-%m-%d_%H -d "$current_day + $ihour hours")
   timestr3=$(date +%Y-%m-%d_%H:00:00 -d "$current_day + $ihour hours")
   #
