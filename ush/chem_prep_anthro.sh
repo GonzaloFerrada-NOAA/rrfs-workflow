@@ -57,7 +57,7 @@ if [[ -r ${EMISFILE_BASE_RAW1_GRA2PES} ]] && [[ -r ${EMISFILE_BASE_RAW2_GRA2PES}
   fi
   echo "Found base emission files: ${EMISFILE_BASE_RAW1_GRA2PES} and ${EMISFILE_BASE_RAW2_GRA2PES}, will interpolate"
   # -- Start the regridding process
-  mpirun -np "${nt}" python -u "${SCRIPT}"   \
+  srun -u python -u "${SCRIPT}"   \
              "GRA2PES" \
              "${DATA}" \
              "${INDIR_GRA2PES}" \
