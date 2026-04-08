@@ -100,10 +100,17 @@ else
    echo "FATAL: NO Init File available, cannot reinterpolate if files are missing, did you run the task out of order?"
    err_exit
 fi
-#
 SCRIPT=${USHrrfs}/chem_regrid.py
 VINTERP_SCRIPT=${USHrrfs}/chem_vinterp.py
 INTERP_WEIGHTS_DIR=${CHEM_INPUT}/grids/interpolation_weights/
+SCRIP_FILES_DIR=${CHEM_INPUT}/grids/scrip_files/
+# Now set the same for the scrip file:
+if [[ "${SCRIP_FILES_DIR}/mpas_${MESH_NAME}_scrip.nc" ]]; then
+   ln -s "${SCRIP_FILES_DIR}/mpas_${MESH_NAME}_scrip.nc" ./
+else
+   echo "WARNING: NO SCRIP file available for this domain in ${SCRIP_FILES_DIR}, you will need to supply it as an argument to ${SCRIPT}"
+fi
+#
 #
 # Set a few things for the CONDA environment
 export REGRID_WRAPPER_LOG_DIR=${DATA}

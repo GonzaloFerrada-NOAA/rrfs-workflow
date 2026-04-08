@@ -984,7 +984,7 @@ def main() -> None:
     # else:
     # FOR NOW, ALWAYS CREATE SCRIP
     if scrip_path is None:
-        scrip_path = Path(workdir + "/mpas_" + dataset_name + "-" + mesh_name + "_scrip.nc")
+        scrip_path = Path(workdir + "/mpas_" + mesh_name + "_scrip.nc")
     #
     if dst_path is None:
         dst_path = Path(workdir + "/init.nc")
@@ -1292,7 +1292,7 @@ def main() -> None:
             # Only finalize after ALL files are done
         if processor:
            processor.finalize()
-            _LOGGER.info("success")
+           _LOGGER.info("success")
 
     elif dataset_name == "NGFS":
         # Initialize context with dummy paths (they get overwritten in the loop)
