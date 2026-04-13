@@ -44,8 +44,8 @@ do
   timestr2=$(date +%Y-%m-%d_%H -d "$current_day + $ihour hours")
   timestr3=$(date +%Y-%m-%d_%H:00:00 -d "$current_day + $ihour hours")
   #
-  EMISFILE=${UMBRELLA_PREP_CHEM_DATA}/smoke.init.retro.${timestr2}.00.00.nc
-  EMISFILE2="${RAVE_OUTPUTDIR}/${MESH_NAME}-RAVE-${timestr1}.nc"
+  EMISFILE="${UMBRELLA_PREP_CHEM_DATA}/smoke.init.retro.${timestr2}.00.00.nc"
+  EMISFILE2="${RAVE_OUTPUTDIR}/${MESH_NAME}-${FIRE_DATASET}-${timestr1}.nc"
   if [[ -r "${EMISFILE2}" ]]; then
     ncrename -v PM25,e_bb_in_smoke_fine "${EMISFILE2}"
     ncrename -v FRP_MEAN,frp_in -v FRE,fre_in "${EMISFILE2}"
