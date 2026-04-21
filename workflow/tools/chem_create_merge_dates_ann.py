@@ -152,17 +152,18 @@ def getRepWeek(year, month, holidays):
 holidays = getHolidays(year)
 
 # Loop for each month, starting with the ramp-up
+outFileName = 'smk_merge_dates_%s.txt' %year
+outFile = open('%s/%s' %(outPath, outFileName), 'w')
+# Write header
+outFile.write ('    Date, aveday_N, aveday_Y,  mwdss_N,  mwdss_Y,   week_N,   week_Y,      all\n')
+# Loop for each month, starting with the ramp-up
 for month in range(13):
         if month == 0:
                 # Use settings for ramp-up
                 run_year = year - 1
                 month = 12
-                outFileName = 'smk_merge_dates_%s12.txt' %run_year
         else:
                 run_year = year
-                outFileName = 'smk_merge_dates_%s%0.2d.txt' %(run_year, month)
-
-        outFile = open('%s/%s' %(outPath, outFileName), 'w')
 
         # Get the representative Tuesday
         ave_rep = getAveDay(year, month, holidays)

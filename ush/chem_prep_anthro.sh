@@ -127,6 +127,10 @@ if [[ "${ANTHRO_EMISINV}" == *NEMO* ]]; then
  # First create the smk_merge_dates file if one doesn't exist
    if [[ ! -r "${MERGEDATEFILE}" ]]; then
       srun -n 1 python "${HOMErrfs}/workflow/tools/chem_create_merge_dates_ann.py" ${NEMO_YEAR}
+      # Put it in the shared directory?
+      cp "smk_merge_dates_${NEMO_YEAR}.txt" "${MERGEDATEFILE}"
+      # In case no permissions, set datefile as one created here
+      MERGEDATEFILE="${DATA}/smk_merge_dates_${NEMO_YEAR}.txt"
    fi
  # Then get the day of the year in the NEMO BASE YEAR (2017) that is closest to today's day of the week in the calendar postion
    YYYYMMDD_NEMO_BASE_YEAR=$(python "${HOMErrfs}/workflow/tools/chem_get_merge_date.py" "${YYYY}" "${JJJ}" "${NEMO_YEAR}")
