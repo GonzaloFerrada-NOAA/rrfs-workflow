@@ -20,6 +20,7 @@ export RETRO_CYCLETHROTTLE=1
 # ---------------------------------------------
 export CHEM_GROUPS="smoke" # any combinations of "smoke, anthro, pollen, dust, rwc"
 export EBB_DCYCLE=-1
+export REGRID_WRAPPER_DIR="${HOMErrfs}/sorc/regrid-wrapper"
 #
 export CONFIG_COARSE=false
 export CONFIG_ULTRAFINE=false
@@ -37,7 +38,6 @@ case ${MACHINE} in
     export CHEM_INPUT="/scratch4/BMC/acomp/cheMPAS-Fire/input"
     export FIRE_DATASET="RAVE" #  e.g., or NGFS
     export FIRE_INPUT="${CHEM_INPUT}/emissions/${FIRE_DATASET}/raw"
-    export REGRID_WRAPPER_DIR="/scratch4/BMC/acomp/cheMPAS-Fire/src/jordanschnell/regrid-wrapper/"
     export ACCOUNT=${ACCOUNT:-"acomp"}
     export PARTITION_PREP_CHEM="hera"
     export NODES_PREP_CHEM="<nodes>1:ppn=20</nodes>"
@@ -55,8 +55,6 @@ case ${MACHINE} in
     else
        export FIRE_INPUT="${CHEM_INPUT}/emissions/${FIRE_DATASET}/raw"
     fi
-    export REGRID_WRAPPER_DIR="/scratch4/BMC/acomp/cheMPAS-Fire/src/jordanschnell/regrid-wrapper/"
-    export REGRID_CONDA_ENV="/scratch4/BMC/acomp/Sudheer/anaconda3Ursa/envs/regrid-wrapper"
     export ACCOUNT=${ACCOUNT:-"acomp"}
     export PARTITION_PREP_CHEM="u1-compute"
     export NODES_PREP_CHEM="<nodes>1:ppn=50</nodes>"
@@ -70,7 +68,6 @@ case ${MACHINE} in
     export CHEM_INPUT="/gpfs/f6/drsa-fire3/world-shared/cheMPAS-Fire/input"
     export FIRE_DATASET="RAVE" #  e.g., or NGFS
     export FIRE_INPUT="${CHEM_INPUT}/emissions/${FIRE_DATASET}/raw"
-    export REGRID_WRAPPER_DIR="/gpfs/f6/drsa-fire3/world-shared/cheMPAS-Fire/src/regrid-wrapper/"
     export NODES_PREP_CHEM="<nodes>1:ppn=1</nodes>"
     export MEMORY_PREP_CHEM="200G"
     ;;

@@ -11,6 +11,6 @@ load("py-netcdf4/1.7.2")
 load("py-pytest/8.2.1")
 load("py-xarray/2024.7.0")
 load("py-pydantic/2.10.1")
+load("py-pydantic-settings/2.6.1")
 
 load("nco")
-
