@@ -34,8 +34,8 @@ EMISFILE1_GRA2PES=${OUTDIR}/GRA2PES${GRA2PES_VERSION}_${GRA2PES_SECTOR}_${MESH_N
 EMISFILE2_GRA2PES=${OUTDIR}/GRA2PES${GRA2PES_VERSION}_${GRA2PES_SECTOR}_${MESH_NAME}_12to23Z.nc
 #
 #
-EMIS_SECTOR_NEMO=(airports nonpt nonroad np_oilgas othar_all rail) # ag will move to online
-EMIS_SECTOR_NEMO_DAYTYPE=(2 6 4 2 2 4 2)
+EMIS_SECTOR_NEMO=(airports nonpt nonroad np_oilgas othar_all rail onroad_ff10) # ag will move to online
+EMIS_SECTOR_NEMO_DAYTYPE=(2 6 4 2 2 4 2 5)
 EMIS_SECTOR_NEMO_PT=(cmv_c1c2_12 cmv_c3_12 othpt pt_oilgas ptegu) 
 EMIS_SECTOR_NEMO_PT_DAYTYPE=(2 2 4 3 8)
 
