@@ -12,4 +12,6 @@ rules:
   line-length:
     max: 50000
 
-ignore: bec_bump.yaml
+ignore:
+  - bec_bump.yaml
+  - bec_diffusion.yaml

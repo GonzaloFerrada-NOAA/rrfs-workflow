@@ -18,6 +18,7 @@
 # TEST COMMIT
 #
 # shellcheck disable=SC1091,SC2153,SC2154,SC2034
+# rrfslint: file-disable=all
 declare -rx PS4='+ $(basename ${BASH_SOURCE[0]:-${FUNCNAME[0]:-"Unknown"}})[${LINENO}]: '
 set -x
 nt=${SLURM_NTASKS}

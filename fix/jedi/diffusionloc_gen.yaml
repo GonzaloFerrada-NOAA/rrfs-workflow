@@ -1,0 +1,31 @@
+_output config: &outputConfig
+  date: &validDate '2024-05-08T04:00:00Z'
+  stream name: control
+geometry:
+  nml_file: "./namelist.atmosphere"
+  streams_file: "./streams.atmosphere"
+  deallocate non-da fields: true
+  bump vunit: "modellevel" # modellevel, height, logp
+background:
+  state variables: &vars [water_vapor_mixing_ratio_wrt_moist_air, air_pressure_at_surface, air_temperature, northward_wind, eastward_wind, cloud_liquid_water, cloud_liquid_ice, rain_water, snow_water, graupel, equivalent_reflectivity_factor]
+  filename: "./mpasout.nc"
+  date: *validDate
+
+background error:
+  covariance model: SABER
+  saber central block:
+    saber block name: diffusion
+    calibration:
+      normalization:
+        iterations: 50
+      groups:
+      - horizontal:
+          fixed value: 15.0e3
+        write:
+          filepath: mpas_conus3km.diffusion_hz
+      - vertical:
+          levels: 59
+          fixed value: 11.0
+          as gaussian: true
+        write:
+          filepath: mpas_conus3km.diffusion_vt

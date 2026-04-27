@@ -103,6 +103,7 @@ if os.getenv("DO_JEDI", 'false').upper() == "TRUE":
     else:
         shutil.copy(f'{HOMErrfs}/parm/jedivar.yaml', f'{exp_configdir}/jedivar.yaml')
         shutil.copy(f'{HOMErrfs}/parm/bec_bump.yaml', f'{exp_configdir}/bec_bump.yaml')
+        shutil.copy(f'{HOMErrfs}/parm/bec_diffusion.yaml', f'{exp_configdir}/bec_diffusion.yaml')
 #
 if os.getenv('DO_HOFX', 'FALSE').upper() == "TRUE":
     shutil.copy(f'{HOMErrfs}/parm/hofx.yaml', f'{exp_configdir}/hofx.yaml')

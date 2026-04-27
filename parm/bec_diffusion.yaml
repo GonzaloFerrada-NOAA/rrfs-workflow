@@ -1,0 +1,24 @@
+  background error:
+    covariance model: ensemble
+    localization:
+      localization method: SABER
+      saber central block:
+        saber block name: diffusion
+        active variables: *incvars
+        read:
+          groups:
+          - variables: *incvars
+            multivariate strategy: duplicated
+            horizontal:
+              filepath: data/diffusionloc/mpas_conus3km.diffusion_hz
+            vertical:
+              levels: 59
+              filepath: data/diffusionloc/mpas_conus3km.diffusion_vt
+    members from template:
+      template:
+        <<: *memberConfig
+        filename: ./data/ens/mem%iMember%.nc
+      pattern: "%iMember%"
+      start: 1
+      zero padding: 3
+      nmembers: 30

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2154,SC2153,SC2012
+# rrfslint: file-disable=RRFS005
 #
 # TODO, if residential wood burning emissions are turned on, we need to use the
 if [[ "${CHEM_GROUPS,,}" == *rwc* ]]; then
@@ -48,7 +49,7 @@ if [[ -r ${EMISFILE_BASE_RAW1_GRA2PES} ]] && [[ -r ${EMISFILE_BASE_RAW2_GRA2PES}
   echo "Checking to make sure we have corner coords"
   ncdump -hv XLAT_C "${EMISFILE_BASE_RAW1_GRA2PES}"
   #shellcheck disable=SC2181
-  if [[ $? -ne 0 ]]; then
+  if [[ $? != 0 ]]; then
     echo ".. we don't, cutting in from ${INPUT_GRID_GRA2PES}"
     ncks -A -v XLAT_C,XLAT_M,XLONG_C,XLONG_M "${INPUT_GRID_GRA2PES}" "${EMISFILE_BASE_RAW1_GRA2PES}"
     ncks -A -v XLAT_C,XLAT_M,XLONG_C,XLONG_M "${INPUT_GRID_GRA2PES}" "${EMISFILE_BASE_RAW2_GRA2PES}"

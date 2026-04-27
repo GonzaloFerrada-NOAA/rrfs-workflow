@@ -26,7 +26,7 @@ mv ./*.log ./*.ESMF_LogFile logs || echo "could not move logs"
 # TODO - Update variable names via outside script or within regrid.py -- mapping table?
 for ihour in $(seq 0 "${my_fcst_length}");
 do
-  if [[ ${ihour} -gt 24 ]]; then
+  if (( ihour > 24 )); then
     ihour2=$((ihour-24))
   else
     ihour2=${ihour}
@@ -96,7 +96,7 @@ if [[ ! -r "${ECO_OUTPUTDIR}/ecoregions_${MESH_NAME}_mpas.nc" ]] && [[ -r "${ECO
 fi
 # 
 n_fmc=$(ls "${FMC_INPUTDIR}/fmc_${YYYY}${MM}${DD}"* | wc -l)
-if [[ ${n_fmc} -gt 0 ]]; then
+if (( n_fmc > 0 )); then
   echo "Have at least some soil moisture information, will interpolate"
      ln -s "${FMC_INPUTDIR}"/* "${DATA}"/
      srun python -u "${SCRIPT}"   \
