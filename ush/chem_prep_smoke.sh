@@ -64,6 +64,8 @@ do
       err_exit
     fi
   fi
+  # TODO temporary fix until YAML options are built into regriddder
+  ncap2 -O -s 'frp_in=frp_in.ttl($nkwildfire)' -s 'fre_in=fre_in.ttl($nkwildfire)' "${EMISFILE}" "${EMISFILE}"
   ncks -O -6 "${EMISFILE}" "${EMISFILE}"
   ncks -A -v xtime ./init.nc  "${EMISFILE}"
   #shellcheck disable=SC2086
