@@ -9,6 +9,13 @@ num_chem=0
 cat "${PARMrrfs}/chemistry/namelist.atmosphere" >> namelist.atmosphere
 cat "${FIXrrfs}/chemistry/stream_list/stream_list.atmosphere.output" >> ./stream_list/stream_list.atmosphere.output
 #
+# Check if fire heat and moisture fluxes are turned on in the config
+if [[ "${CONFIG_FIRE_HEATFLUX^^}" == "TRUE" ]]; then
+  sed -i "s/add_fire_heat_flux\s*=\s*'false'/add_fire_heat_flux  = 'true'/g" namelist.atmosphere
+fi
+if [[ "${CONFIG_FIRE_MOISTFLUX^^}" == "TRUE" ]]; then
+  sed -i "s/add_fire_moist_flux\s*=\s*'false'/add_fire_moist_flux  = 'true'/g" namelist.atmosphere
+fi
 # Biogenic/Pollen
 if [[ "${CHEM_GROUPS,,}" == *pollen* ]]; then
    if [[ -s "${UMBRELLA_PREP_CHEM_DATA}/bio.init.nc" ]]; then

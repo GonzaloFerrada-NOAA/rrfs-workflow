@@ -22,6 +22,8 @@ export CHEM_GROUPS="smoke" # any combinations of "smoke, anthro, pollen, dust, r
 export EBB_DCYCLE=-1
 export REGRID_WRAPPER_DIR="${HOMErrfs}/sorc/regrid-wrapper"
 #
+export CONFIG_FIRE_HEATFLUX=false
+export CONFIG_FIRE_MOISTFLUX=false
 export CONFIG_COARSE=false
 export CONFIG_ULTRAFINE=false
 #
