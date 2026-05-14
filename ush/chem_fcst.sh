@@ -28,6 +28,12 @@ if [[ "${CHEM_GROUPS,,}" == *pollen* ]]; then
       echo "WARNING: No pollen emission file exists"
    fi
 fi
+# Sea Salt
+if [[ "${CHEM_GROUPS,,}" == *ssalt* ]]; then
+      sed -i "s/config_ssalt_scheme\s*=\s*'off'/config_ssalt_scheme  = 'on'/g" namelist.atmosphere
+      num_chem=$(( num_chem + 2 ))
+fi
+
 # Dust
 if [[ "${CHEM_GROUPS,,}" == *dust* ]]; then
   if [[ -s "${FIXrrfs}/chemistry/dust/fengsha_dust_inputs.${MESH_NAME}.nc" ]]; then
@@ -97,6 +103,7 @@ if (( ${#files[@]}  )); then  # at least one file exists
   if [[ "${CONFIG_COARSE}" == "TRUE" ]]; then
      num_chem=$(( num_chem + 1 ))
   fi
+  added_smoke="TRUE"
   # Set EBB_DCYCLE
   sed -i -e "s/@ebb_dcycle@/${EBB_DCYCLE}/" namelist.atmosphere 
 fi
@@ -107,7 +114,21 @@ if [[ -s "${UMBRELLA_PREP_CHEM_DATA}/rwc.init.nc" ]]; then
   ln -snf "${UMBRELLA_PREP_CHEM_DATA}"/rwc.init.nc rwc.init.nc
   # Set namelist
   sed -i "s/config_rwc_scheme\s*=\s*'off'/config_rwc_scheme = 'on'/g" namelist.atmosphere
+  if [[ "${added_smoke}" == "TRUE" ]]; then
+     echo "Smoke already added and num_chem adjusted"
+  else
+     num_chem=$(( num_chem + 1 ))
+  fi
 fi
+#
+# Extra chemical tracers
+if [[ "${#EXTRA_CHEMICAL_TRACERS[@]}" -gt 0 ]]; then
+   n_extra=$(echo "${EXTRA_CHEMICAL_TRACERS//,/ }" | wc -w)
+   echo "adding ${#EXTRA_CHEMICAL_TRACERS[@]} to the tracer list"
+   sed -i "s/config_extra_chemical_tracers[[:space:]]*=[[:space:]]*''/config_extra_chemical_tracers = ',${EXTRA_CHEMICAL_TRACERS},'/g" namelist.atmosphere
+   num_chem=$(( num_chem + n_extra ))
+fi 
+
 #
 # Replace the num_chem value with the correct number
 sed -i "s/num_chem\s*=\s*[0-9]*/num_chem  = ${num_chem}/" namelist.atmosphere

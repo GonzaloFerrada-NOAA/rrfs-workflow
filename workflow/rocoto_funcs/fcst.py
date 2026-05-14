@@ -50,6 +50,7 @@ def fcst(xmlFile, expdir, do_ensemble=False, dcEnsGrpInfo=None, do_spinup=False)
         dcTaskEnv['EBB_DCYCLE'] = os.getenv('EBB_DCYCLE', 0)
         dcTaskEnv['CONFIG_COARSE'] = os.getenv('CONFIG_COARSE', 'FALSE').upper()
         dcTaskEnv['CHEM_GROUPS'] = os.getenv('CHEM_GROUPS', 'smoke')
+        dcTaskEnv['EXTRA_CHEMICAL_TRACERS'] = os.getenv('EXTRA_CHEMICAL_TRACERS','')
         dcTaskEnv['CONFIG_FIRE_HEATFLUX'] = os.getenv('CONFIG_FIRE_HEATFLUX', 'FALSE').upper()
         dcTaskEnv['CONFIG_FIRE_MOISTFLUX'] = os.getenv('CONFIG_FIRE_MOISTFLUX', 'FALSE').upper()
         chemdep = '\n    <metataskdep metatask="prep_chem"/>'

@@ -1,5 +1,11 @@
 import sys
 import xarray as xr
+from functools import partial
+
+
+def filter_vars(ds, variables_to_keep):
+    existing_vars = [var for var in variables_to_keep if var in ds.data_vars]
+    return ds[existing_vars]
 
 def main():
     if len(sys.argv) < 4:
@@ -8,6 +14,8 @@ def main():
     out_file = sys.argv[1]
     var_list = sys.argv[2].split(',')
     in_files = sys.argv[3:]
+
+    preprocess_with_vars = partial(filter_vars, variables_to_keep=var_list)
 
     print(f"Opening {len(in_files)} files...")
     print(f"Targeting only: {var_list}")
@@ -27,7 +35,8 @@ def main():
         in_files,
         combine='nested',
         concat_dim='file_index',
-        data_vars=var_list,      # Ignore the other ~96 variables
+#        data_vars=var_list,      # Ignore the other ~96 variables
+        preprocess=preprocess_with_vars,
         drop_variables=vars_to_drop,
         coords="minimal",        # Don't compare coordinates across all files
         compat="override",       # Trust that lat/lon are the same
