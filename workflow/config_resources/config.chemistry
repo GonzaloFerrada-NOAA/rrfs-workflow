@@ -28,6 +28,7 @@ export CONFIG_FIRE_MOISTFLUX=false
 export CONFIG_COARSE=false
 export CONFIG_ULTRAFINE=false
 export EXTRA_CHEMICAL_TRACERS="" # e.g., "co,nox,so2"
+export CONFIG_MIE_AOD_OPT=0
 #
 export USE_EXTERNAL_CHEM_LBCS=false
 export USE_EXTERNAL_CHEM_ICS=false

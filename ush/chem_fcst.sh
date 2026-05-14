@@ -129,6 +129,26 @@ if [[ "${#EXTRA_CHEMICAL_TRACERS[@]}" -gt 0 ]]; then
    num_chem=$(( num_chem + n_extra ))
 fi 
 
+# MIE tables
+if [[ "${CONFIG_MIE_AOD_OPT}" -gt 0 ]]; then
+   sed -i '/^&physics$/a \    aer_opt = 2' namelist.atmosphere
+   if [[ -e "${CHEM_INPUT}/aux/mie/AERO_OPT.TBL" ]]; then
+      echo "AERO_OPT.TBL exists in chem input directory, linking to run dir"
+      ln -s "${CHEM_INPUT}/aux/mie/AERO_OPT.TBL" .
+   else
+      # Linke the refract text files
+      ln -s "${HOMErrfs}/workflow/tools/prep_for_optics/refract*" .
+      srun -u python -u "${HOMErrfs}/workflow/tools/prep_for_optics/prep.optics.MPAS.py"
+      if [[ -e "AERO_OPT.TBL" ]] ; then
+         echo "AERO_OPT.TBL created successfully"
+         sed -i "s/\(config_mie_aod_opt\s*=\s*\).*/\1${CONFIG_MIE_AOD_OPT}/"
+      else
+         echo "Could not create AERO_OPT.TBL necessary for config_mie_aod_opt=${CONFIG_MIE_AOD_OPT}, resetting to 0"
+         sed -i "s/\(config_mie_aod_opt\s*=\s*\).*/\10/"
+      fi
+   fi 
+fi
+
 #
 # Replace the num_chem value with the correct number
 sed -i "s/num_chem\s*=\s*[0-9]*/num_chem  = ${num_chem}/" namelist.atmosphere

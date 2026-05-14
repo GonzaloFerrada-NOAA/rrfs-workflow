@@ -55,6 +55,8 @@ def fcst(xmlFile, expdir, do_ensemble=False, dcEnsGrpInfo=None, do_spinup=False)
         dcTaskEnv['EXTRA_CHEMICAL_TRACERS'] = os.getenv('EXTRA_CHEMICAL_TRACERS','')
         dcTaskEnv['CONFIG_FIRE_HEATFLUX'] = os.getenv('CONFIG_FIRE_HEATFLUX', 'FALSE').upper()
         dcTaskEnv['CONFIG_FIRE_MOISTFLUX'] = os.getenv('CONFIG_FIRE_MOISTFLUX', 'FALSE').upper()
+        dcTaskEnv['CONFIG_MIE_AOD_OPT'] = os.getenv('CONFIG_MIE_AOD_OPT',0)
+        dcTaskEnv['CHEM_INPUT'] = os.getenv('CHEM_INPUT', 'CHEM_INPUT_undefined')
         chemdep = '\n    <metataskdep metatask="prep_chem"/>'
     else:
         chemdep = ""
