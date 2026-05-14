@@ -22,7 +22,8 @@ def is_directory_empty(directory_path):
 
 def is_cycle_done(EXPDIR, CDATE):
     is_done = False
-    db = f"{EXPDIR}/rrfs.db"
+    NET = os.getenv("NET", "NET_not_defined")
+    db = f"{EXPDIR}/{NET}.db"
     conn = sqlite3.connect(db)
     cur = conn.cursor()
     cur.execute(f"SELECT * FROM cycles")
@@ -65,6 +66,8 @@ def day_clean(srcPath, cyc1, cyc2, srcType, WGF, com_nondefault=""):
             task = srcType.strip().split('_', 1)[1]
             if task == "default":
                 pattern = f'{i:02}/*/{WGF}'
+            elif task == "nclprd":
+                pattern = f'{i:02}/nclprd'
             else:
                 pattern = f'{i:02}/{task}/{WGF}'
 
@@ -96,20 +99,20 @@ def day_clean(srcPath, cyc1, cyc2, srcType, WGF, com_nondefault=""):
         #
         pathlist = list(Path(srcPath).glob(pattern.rstrip(f'/{WGF}')))
         for mypath in pathlist:
-            if os.path.exists(mypath) and is_directory_empty(mypath):
+            if os.path.isdir(mypath) and is_directory_empty(mypath):
                 os.rmdir(mypath)
                 print(f'remove empty directory: {mypath}')
         # ~~~~~~~~~~~~
         # remove RUN.PDY/cyc if it is empty under com/
         #
         cycPath = srcPath.rstrip('/') + f"/{i:02}"
-        if os.path.exists(cycPath) and srcType.startswith("com") and is_directory_empty(cycPath):
+        if os.path.isdir(cycPath) and srcType.startswith("com") and is_directory_empty(cycPath):
             os.rmdir(cycPath)
             print(f'remove empty directory: {cycPath}')
         # ~~~~~~~~~~~~
         # remove srcPath if it is empty
         #
-        if os.path.exists(srcPath) and is_directory_empty(srcPath):
+        if os.path.isdir(srcPath) and is_directory_empty(srcPath):
             os.rmdir(srcPath)
             print(f'remove empty directory: {srcPath}')
 #

@@ -41,6 +41,8 @@ def fcst(xmlFile, expdir, do_ensemble=False, dcEnsGrpInfo=None, do_spinup=False)
     }
     if os.getenv('FCST_CONVECTION_SCHEME', 'FALSE').upper() == 'TRUE':
         dcTaskEnv['FCST_CONVECTION_SCHEME'] = "TRUE"
+    if os.getenv('FCST_GFL_SUB3D', '') != '':
+        dcTaskEnv['FCST_GFL_SUB3D'] = os.getenv('FCST_GFL_SUB3D')
     if os.getenv('MPASOUT_SAVE2COM_HRS', '') != '':
         dcTaskEnv['MPASOUT_SAVE2COM_HRS'] = os.getenv('MPASOUT_SAVE2COM_HRS')
     if do_spinup:
@@ -76,8 +78,6 @@ def fcst(xmlFile, expdir, do_ensemble=False, dcEnsGrpInfo=None, do_spinup=False)
         metatask = True
         task_id = f'{meta_id}_m#ens_index#'
         dcTaskEnv['ENS_INDEX'] = "#ens_index#"
-        meta_bgn = ""
-        meta_end = ""
         meta_bgn = f'''
 <metatask name="{group_name}">
 <var name="ens_index">{ens_indices}</var>'''

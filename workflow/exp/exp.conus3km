@@ -21,7 +21,7 @@ export DO_NONVAR_CLOUD_ANA=false
 export COLDSTART_CYCS_DO_DA=false
 export DO_CHEMISTRY=false
 export DO_CLEAN=true
-export DO_BLENDING=true
+export DO_BLENDING=false
 export BLENDING_CYCS="00 12"    # cycle to blend large and small scale .e.g. GFS/MPAS forecast
 export HYB_WGT_ENS=0.0
 export HYB_WGT_STATIC=1.0
@@ -44,6 +44,7 @@ for i in {0..23};    do arr[$i]="03"; done # 3hr fcst
 for i in {0..23..12}; do arr[$i]="12"; done # 12hr fcst every 12hrs
 export FCST_LEN_HRS_CYCLES="${arr[*]}"
 export HISTORY_INTERVAL=1
+export MPASOUT_TIMELEVELS="0 1"
 export POST_GROUP_TOT_NUM=2 # num of groups, the final group absorbs leftovers, the first group contains the extra f000h file
 
 export IC_OFFSET=6
