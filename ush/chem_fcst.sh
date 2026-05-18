@@ -74,6 +74,15 @@ if (( ${#files[@]}  )); then  # at least one file exists
   done
   #
   sed -i "s/config_anthro_scheme\s*=\s*'off'/config_anthro_scheme  = 'simple_aero'/g" namelist.atmosphere
+  #
+  if [[ ${ANTHRO_EMISINV} == "GRA2PES" ]] ; then
+     sed -i "s/\(kanthro\s*=\s*\).*/\120/" namelist.atmosphere
+  elif [[ ${ANTHRO_EMISINV} == "NEMO" ]] ; then
+     sed -i "s/\(kanthro\s*=\s*\).*/\11/" namelist.atmosphere
+  else
+     echo "UNKNOWN ANTHRO_EMISINV = ${ANTHRO_EMISINV} .. unexpected results may occur, user beware"
+  fi
+  #
   num_chem=$(( num_chem + 1 ))
   if [[ "${CONFIG_COARSE}" == "TRUE" ]]; then
      num_chem=$(( num_chem + 1 ))
