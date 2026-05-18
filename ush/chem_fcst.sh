@@ -135,13 +135,14 @@ if [[ "${CONFIG_MIE_AOD_OPT}" -gt 0 ]]; then
    if [[ -e "${CHEM_INPUT}/aux/mie/AERO_OPT.TBL" ]]; then
       echo "AERO_OPT.TBL exists in chem input directory, linking to run dir"
       ln -s "${CHEM_INPUT}/aux/mie/AERO_OPT.TBL" .
+      sed -i "s/\(config_mie_aod_opt\s*=\s*\).*/\1${CONFIG_MIE_AOD_OPT}/" namelist.atmosphere
    else
       # Linke the refract text files
       ln -s "${HOMErrfs}/workflow/tools/prep_for_optics/refract*" .
       srun -u python -u "${HOMErrfs}/workflow/tools/prep_for_optics/prep.optics.MPAS.py"
       if [[ -e "AERO_OPT.TBL" ]] ; then
          echo "AERO_OPT.TBL created successfully"
-         sed -i "s/\(config_mie_aod_opt\s*=\s*\).*/\1${CONFIG_MIE_AOD_OPT}/"
+         sed -i "s/\(config_mie_aod_opt\s*=\s*\).*/\1${CONFIG_MIE_AOD_OPT}/" namelist.atmosphere
       else
          echo "Could not create AERO_OPT.TBL necessary for config_mie_aod_opt=${CONFIG_MIE_AOD_OPT}, resetting to 0"
          sed -i "s/\(config_mie_aod_opt\s*=\s*\).*/\10/"
