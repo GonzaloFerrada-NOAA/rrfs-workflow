@@ -26,4 +26,6 @@
     config_mynn_enh_mix = false
     kanthro = 1
     kwildfire = 1
+    aero_dir_rad_fdb = 0
+    config_mie_aod_opt = 0
 /
