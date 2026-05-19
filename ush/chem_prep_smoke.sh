@@ -56,6 +56,8 @@ do
     ncrename -v NH3,e_bb_in_nh3 "${EMISFILE2}"
     ncrename -v NOx,e_bb_in_nox "${EMISFILE2}"
     ln -sf "${EMISFILE2}" "${EMISFILE}"
+    # TODO temporary fix until YAML options are built into regriddder
+    ncap2 -O -s 'frp_in=frp_in.ttl($nkwildfire)' -s 'fre_in=fre_in.ttl($nkwildfire)' "${EMISFILE}" "${EMISFILE}"
   else
     dummyRAVE=${FIXrrfs}/chemistry/${FIRE_DATASET}/${FIRE_DATASET}.dummy.${MESH_NAME}.nc
     if [[ -s ${dummyRAVE} ]]; then
@@ -65,8 +67,6 @@ do
       err_exit
     fi
   fi
-  # TODO temporary fix until YAML options are built into regriddder
-  ncap2 -O -s 'frp_in=frp_in.ttl($nkwildfire)' -s 'fre_in=fre_in.ttl($nkwildfire)' "${EMISFILE}" "${EMISFILE}"
   ncks -O -6 "${EMISFILE}" "${EMISFILE}"
   ncks -A -v xtime ./init.nc  "${EMISFILE}"
   #shellcheck disable=SC2086
