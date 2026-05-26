@@ -35,8 +35,8 @@ EMISFILE2_GRA2PES=${OUTDIR}/GRA2PES${GRA2PES_VERSION}_${GRA2PES_SECTOR}_${MESH_N
 #
 #
 EMIS_SECTOR_NEMO=(airports nonpt nonroad np_oilgas othar_all rail onroad_ff10) # ag will move to online
-EMIS_SECTOR_NEMO_DAYTYPE=(2 6 4 2 2 4 2 5)
-EMIS_SECTOR_NEMO_PT=(cmv_c1c2_12 cmv_c3_12 othpt pt_oilgas ptegu) 
+EMIS_SECTOR_NEMO_DAYTYPE=(4 6 4 2 4 2 5)  # ag will be = 2
+EMIS_SECTOR_NEMO_PT=(cmv_c1c2_12 cmv_c3_12 othpt pt_oilgas ptegu) # ag
 EMIS_SECTOR_NEMO_PT_DAYTYPE=(2 2 4 3 8)
 
 # the following 2 variable are not used
@@ -147,6 +147,16 @@ if [[ "${ANTHRO_EMISINV}" == *NEMO* ]]; then
       colid=${EMIS_SECTOR_NEMO_DAYTYPE[${isect_knt}]}
       testdate=$(awk -F',' -v row_num="${rowid}" -v col_num="${colid}" 'NR==row_num {gsub(/[[:blank:]]/, "", $col_num); print $col_num; exit}' "${MERGEDATEFILE}")
       testfile="${INDIR_NEMO}/${isect}/emis_mole_${isect}_${testdate}_${NEMO_GRID}_cmaq_${NEMO_VERSION}.ncf"
+# --- DYNAMIC MULTI-DAY FALLBACK ---
+      # If the targeted file doesn't exist, dynamically find the first available 
+      # file for that same year and month (e.g., matching 201705*)
+      if [[ ! -r "${testfile}" ]]; then
+         YYYYMM="${testdate:0:6}"
+         first_available=$(ls -1 "${INDIR_NEMO}/${isect}/"emis_mole_${isect}_${YYYYMM}*.ncf 2>/dev/null | head -n 1)
+         if [[ -n "${first_available}" ]]; then
+            testfile="${first_available}"
+         fi
+      fi
       if [[ -r "${testfile}" ]]; then
          NEMO_EMISFILES_TO_CAT+=("${testfile}")
       fi
