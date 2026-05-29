@@ -48,3 +48,8 @@
 	url = https://github.com/jordanschnell/regrid-wrapper.git
 	branch = mpas_aero_v0
 	ignore = all
+[submodule "sorc/NGFS-FRP"]
+	path = sorc/NGFS-FRP
+	url = https://github.com/GonzaloFerrada-NOAA/NGFS-FRP.git
+	branch = rrfs-workflow
+	ignore = all
