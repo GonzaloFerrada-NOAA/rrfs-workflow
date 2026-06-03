@@ -52,4 +52,4 @@
 	path = sorc/NGFS-FRP
 	url = https://github.com/GonzaloFerrada-NOAA/NGFS-FRP.git
 	branch = rrfs-workflow
-    ignore = all
+	ignore = all
