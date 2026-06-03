@@ -24,6 +24,7 @@ def prep_chem(xmlFile, expdir, do_ensemble=False, do_spinup=False):
         'FCST_LEN_HRS_CYCLES': os.getenv('FCST_LEN_HRS_CYCLES', '01 01'),
         'CHEM_INPUT': os.getenv('CHEM_INPUT', 'CHEM_INPUT_undefined'),
         'REGRID_WRAPPER_DIR': os.getenv('REGRID_WRAPPER_DIR', 'REGRID_WRAPPER_DIR_undefined'),
+        'NGFS_PROCESSOR_DIR': os.getenv('NGFS_PROCESSOR_DIR', 'NGFS_PROCESSOR_DIR_undefined'),
         'FIRE_INPUT': os.getenv('FIRE_INPUT', 'FIRE_INPUT_undefined'),
         'FIRE_DATASET': os.getenv('FIRE_DATASET', 'FIRE_DATASET_undefined'),
     }

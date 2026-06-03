@@ -21,6 +21,7 @@ export RETRO_CYCLETHROTTLE=1
 export CHEM_GROUPS="smoke" # any combinations of "smoke, anthro, pollen, dust, rwc"
 export EBB_DCYCLE=-1
 export REGRID_WRAPPER_DIR="${HOMErrfs}/sorc/regrid-wrapper"
+export NGFS_PROCESSOR_DIR="${HOMErrfs}/sorc/NGFS-FRP"
 #
 export ANTHRO_EMISINV="GRA2PES"
 export CONFIG_FIRE_HEATFLUX=false
@@ -53,7 +54,8 @@ case ${MACHINE} in
     if ${REALTIME:-false}; then
        export FIRE_INPUT="/public/data/grids/nesdis/3km_fire_emissions"
     else
-       export FIRE_INPUT="${CHEM_INPUT}/emissions/${FIRE_DATASET}/raw"
+       #export FIRE_INPUT="${CHEM_INPUT}/emissions/${FIRE_DATASET}/raw"
+       export FIRE_INPUT="/scratch3/BMC/acomp/Gonzalo.Ferrada/tmp/rave"
     fi
     export ACCOUNT=${ACCOUNT:-"acomp"}
     export PARTITION_PREP_CHEM="u1-compute"
