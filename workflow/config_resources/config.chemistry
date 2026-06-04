@@ -52,10 +52,14 @@ case ${MACHINE} in
     export CHEM_INPUT="/scratch4/BMC/acomp/cheMPAS-Fire/input"
     export FIRE_DATASET="RAVE" #  e.g., or NGFS
     if ${REALTIME:-false}; then
+        if [[ "${FIRE_DATASET}" == "RAVE" ]]; then
+           export FIRE_INPUT="/public/data/grids/nesdis/3km_fire_emissions"
+        elif [[ "${FIRE_DATASET}" == "NGFS" ]]; then
+           export FIRE_INPUT="/public/data/sat/ssec/goes-west/ngfs /public/data/sat/ssec/goes-east/ngfs"
+        fi
        export FIRE_INPUT="/public/data/grids/nesdis/3km_fire_emissions"
     else
-       #export FIRE_INPUT="${CHEM_INPUT}/emissions/${FIRE_DATASET}/raw"
-       export FIRE_INPUT="/scratch3/BMC/acomp/Gonzalo.Ferrada/tmp/rave"
+       export FIRE_INPUT="${CHEM_INPUT}/emissions/${FIRE_DATASET}/raw"
     fi
     export ACCOUNT=${ACCOUNT:-"acomp"}
     export PARTITION_PREP_CHEM="u1-compute"
