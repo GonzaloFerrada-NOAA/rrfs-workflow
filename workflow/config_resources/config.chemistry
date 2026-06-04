@@ -57,7 +57,6 @@ case ${MACHINE} in
         elif [[ "${FIRE_DATASET}" == "NGFS" ]]; then
            export FIRE_INPUT="/public/data/sat/ssec/goes-west/ngfs /public/data/sat/ssec/goes-east/ngfs"
         fi
-       export FIRE_INPUT="/public/data/grids/nesdis/3km_fire_emissions"
     else
        export FIRE_INPUT="${CHEM_INPUT}/emissions/${FIRE_DATASET}/raw"
     fi
