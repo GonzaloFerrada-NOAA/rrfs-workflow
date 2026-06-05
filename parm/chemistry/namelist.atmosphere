@@ -6,6 +6,7 @@
     config_pollen_scheme = 'off'
     config_rwc_scheme = 'off'
     config_ssalt_scheme = 'off'
+    config_extra_chemical_tracers = ''
     num_chem = 0
     plume_wind_eff = 0
     ebb_dcycle = -1
