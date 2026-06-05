@@ -37,6 +37,7 @@ def mpassit(xmlFile, expdir, index, dcGrpInfo, do_ensemble=False, do_ensmean_pos
 
     if os.getenv('DO_CHEMISTRY', 'FALSE').upper() == "TRUE":
         dcTaskEnv['CHEM_GROUPS'] = os.getenv('CHEM_GROUPS', 'smoke')
+        dcTaskEnv['EXTRA_CHEMICAL_TRACERS'] = os.getenv('EXTRA_CHEMICAL_TRACERS','')
 
     if not do_ensemble:
         metatask = False

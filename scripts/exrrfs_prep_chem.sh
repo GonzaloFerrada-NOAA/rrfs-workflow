@@ -19,7 +19,7 @@
 #
 # shellcheck disable=SC1091,SC2153,SC2154,SC2034
 # rrfslint: file-disable=all
-declare -rx PS4='+ $(basename ${BASH_SOURCE[0]:-${FUNCNAME[0]:-"Unknown"}})[${LINENO}]: '
+declare -rx PS4='+${SECONDS}s $(basename ${BASH_SOURCE[0]:-${FUNCNAME[0]:-"Unknown"}})[${LINENO}]: '
 set -x
 nt=${SLURM_NTASKS}
 cpreq=${cpreq:-cpreq}
@@ -142,7 +142,9 @@ fi # bio/pollen
 if [[ "${CHEM_GROUP}" == "GOES_AOD" ]] ; then
   source "${USHrrfs}"/chem_prep_goes_aod.sh
 fi
-
+if [[ "${CHEM_GROUP}" == "ssalt" ]] ; then
+  echo "NOTHING to prepare -- exiting"
+fi
 if [[ "${CHEM_GROUP}" == "dust" ]]; then
   if [[ ! -s "${FIXrrfs}/chemistry/dust/fengsha_dust_inputs.${MESH_NAME}.nc" ]]; then
      source "${HOMErrfs}/workflow/tools/chem_prep_dust.sh"
