@@ -25,6 +25,9 @@ fi
 if [[ "${CHEM_GROUPS}" == *soa* ]]; then
   cat "${FIXrrfs}"/chemistry/mpassit/histlist_3d_soa >> histlist_3d
 fi
+if [[ "${CHEM_GROUPS}" == *sna* ]]; then
+  cat "${FIXrrfs}"/chemistry/mpassit/histlist_3d_sna >> histlist_3d
+fi
 for tracer in ${EXTRA_CHEMICAL_TRACERS//,/ }; do
     # Convert to uppercase
     tracer_upper="${tracer^^}" 

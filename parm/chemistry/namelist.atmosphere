@@ -7,6 +7,8 @@
     config_rwc_scheme = 'off'
     config_ssalt_scheme = 'off'
     config_extra_chemical_tracers = ''
+    config_sna_scheme = 'off'
+    config_soa_scheme = 0
     num_chem = 0
     plume_wind_eff = 0
     ebb_dcycle = -1
