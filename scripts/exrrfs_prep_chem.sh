@@ -11,10 +11,10 @@
 #
 ## Required Input Arguments
 #
-# 1. CHEM_GROUP    -- which chem emission group is this task performing? (anthro, pollen, dust)
-# 2. ANTHRO_EMISINV            -- undecided, may merge for custom dataset, or leave option to combine
-# 3. CHEM_INPUT             -- location of interpolated files, ready to be used
-# 4. MESH_NAME                -- name of the MPAS domain, required to know if we have weights or data intepolated to the domain
+# 1. CHEM_GROUP     -- which chem emission group is this task performing? (anthro, pollen, dust)
+# 2. ANTHRO_EMISINV -- undecided, may merge for custom dataset, or leave option to combine
+# 3. CHEM_INPUT     -- location of interpolated files, ready to be used
+# 4. MESH_NAME      -- name of the MPAS domain, required to know if we have weights or data intepolated to the domain
 #
 # shellcheck disable=SC1091,SC2153,SC2154,SC2034
 # rrfslint: file-disable=all
@@ -118,6 +118,7 @@ export PYTHONPATH="${REGRID_WRAPPER_DIR}/src":${PYTHONPATH}
 #
 #==================================================================================================#
 if [[ "${CHEM_GROUP}" == "smoke" ]]; then
+  SCRIPT="${USHrrfs}/chem_smoke_vectorize.py"
   source "${USHrrfs}"/chem_prep_smoke.sh
 fi
 

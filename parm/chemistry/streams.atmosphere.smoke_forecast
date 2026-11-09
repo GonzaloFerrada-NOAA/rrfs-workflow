@@ -3,3 +3,8 @@
                   filename_template="smoke.init.nc"
                   io_type="netcdf,netcdf4"
                   input_interval="initial_only" />
+<immutable_stream name="bb_pt_stack_group_input"
+                  type="input"
+                  filename_template="bb_pt.stack_groups.init.nc"
+                  input_interval="initial_only"
+                  io_type="netcdf,netcdf4"/>

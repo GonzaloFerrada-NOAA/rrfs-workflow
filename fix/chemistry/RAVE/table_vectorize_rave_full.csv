@@ -1,0 +1,29 @@
+﻿vnamein,unitsin,vnameout,long_name,unitsout,mw,conversion,datatype
+grid_lont,degrees_east,BBLG,longitude,degrees_east,NaN,1,float64
+grid_latt,degrees_north,BBLT,latitude,degrees_north,NaN,1,float64
+area,km**2,area,area,m2,NaN,1000000,float32
+FRP_MEAN,MW,frp_in,Fire radiative power,W,NaN,1000000,float32
+FRP_SD,MW,frp_in_std,Fire radiative power standard deviation,W,NaN,1000000,float32
+FRE,MJ,fre_in,Fire radiative energy,J,NaN,1000000,float32
+CO2,kg,e_bb_in_co2,CO2 biomass burning emissions,mol m-2 s-1,44,2.78E-07,float32
+CO,kg,e_bb_in_co,CO biomass burning emissions,mol m-2 s-1,28,2.78E-07,float32
+SO2,kg,e_bb_in_so2,SO2 biomass burning emissions,mol m-2 s-1,64,2.78E-07,float32
+NOx,kg,e_bb_in_nox,NOx biomass burning emissions,mol m-2 s-1,38,2.78E-07,float32
+NH3,kg,e_bb_in_nh3,NH3 biomass burning emissions,mol m-2 s-1,17,2.78E-07,float32
+VOCs,kg,e_bb_in_voc,VOCs biomass burning emissions,mol m-2 s-1,0,2.78E-07,float32
+CH4,kg,e_bb_in_ch4,CH4 biomass burning emissions,mol m-2 s-1,16,2.78E-07,float32
+OC,kg,e_bb_in_oc,OC biomass burning emissions,ug m-2 s-1,1,0.277777778,float32
+BC,kg,e_bb_in_bc,BC biomass burning emissions,ug m-2 s-1,1,0.277777778,float32
+PM25,kg,e_bb_in_smoke_fine,Smoke fine biomass burning emissions,ug m-2 s-1,1,0.277777778,float32
+TPM,kg,e_bb_in_smoke_coarse,Smoke coarse biomass burning emissions,ug m-2 s-1,1,0.277777778,float32
+CO2_scaled,kg,e_bb_in_co2_scaled,CO2 biomass burning emissions,mol m-2 s-1,44,2.78E-07,float32
+CO_scaled,kg,e_bb_in_co_scaled,CO biomass burning emissions,mol m-2 s-1,28,2.78E-07,float32
+SO2_scaled,kg,e_bb_in_so2_scaled,SO2 biomass burning emissions,mol m-2 s-1,64,2.78E-07,float32
+NOx_scaled,kg,e_bb_in_nox_scaled,NOx biomass burning emissions,mol m-2 s-1,46,2.78E-07,float32
+NH3_scaled,kg,e_bb_in_nh3_scaled,NH3 biomass burning emissions,mol m-2 s-1,17,2.78E-07,float32
+VOCs_scaled,kg,e_bb_in_voc_scaled,VOCs biomass burning emissions,mol m-2 s-1,0,2.78E-07,float32
+CH4_scaled,kg,e_bb_in_ch4_scaled,CH4 biomass burning emissions,mol m-2 s-1,16,2.78E-07,float32
+OC_scaled,kg,e_bb_in_oc_scaled,OC biomass burning emissions,ug m-2 s-1,1,0.277777778,float32
+BC_scaled,kg,e_bb_in_bc_scaled,BC biomass burning emissions,ug m-2 s-1,1,0.277777778,float32
+PM25_scaled,kg,e_bb_in_smoke_fine_scaled,Smoke fine biomass burning emissions,ug m-2 s-1,1,0.277777778,float32
+TPM_scaled,kg,e_bb_in_smoke_coarse_scaled,Smoke coarse biomass burning emissions,ug m-2 s-1,1,0.277777778,float32

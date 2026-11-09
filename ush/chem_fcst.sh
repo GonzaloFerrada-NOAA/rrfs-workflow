@@ -106,6 +106,7 @@ if (( ${#files[@]}  )); then  # at least one file exists
   fi
   # TODO, retro vs. forecast option
   ln -snf "${UMBRELLA_PREP_CHEM_DATA}"/smoke.init* ./
+  ln -snf "${UMBRELLA_PREP_CHEM_DATA}"/bb_pt.stack_groups.init.nc ./
   #
   if [[ "${CHEM_GROUPS,,}" == *smoke* ]]; then
      sed -i "s/config_smoke_scheme\s*=\s*'off'/config_smoke_scheme = 'on'/g" namelist.atmosphere
