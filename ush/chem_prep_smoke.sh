@@ -98,7 +98,7 @@ ${SRUN_PYTHON} "${SCRIPT}" \
         --pathout       "${RAVE_OUTPUTDIR}" \
         --table         "${TABLE}"          \
         --dataset       "${FIRE_DATASET}"   \
-        --treatmissing  'last'              \
+        --treatmissing  'zeros'             \
         --days-shift    "${DAYS_SHIFT}"
 
 # 4) Persistence with FCST_LENGTH > 24: repeat the first day for the remaining hours.

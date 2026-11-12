@@ -7,4 +7,4 @@ FRP_FEATURE,MW,feature_frp,Fire radiative power of feature,W,NaN,1000000,float32
 FRE,MJ,fre_in,Fire radiative energy,J,NaN,1000000,float32
 EMIS_PM25,kg,e_bb_in_smoke_fine,Smoke fine biomass burning emissions,ug m-2 s-1,1,0.277777778,float32
 DURATION_MAX,hours,fire_duration,Fire duration,hours,NaN,1,float32
-FIRE_TYPE,#,fire_type,1:Agricultural 2:Prescribed 3:Wilfire 4:WUI 5:Industrial 6:Unknown,#,NaN,1,int16
+FIRE_TYPE,#,fire_type_in,1:Agricultural 2:Prescribed 3:Wilfire 4:WUI 5:Industrial 6:Unknown,#,NaN,1,int16

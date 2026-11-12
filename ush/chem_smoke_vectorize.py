@@ -37,14 +37,14 @@ DATASETS = {
 # Output variables that don't change with time -> bb_pt.stack_groups.init.nc
 # (only those present in the table are written). Everything else goes to the
 # hourly smoke.init.retro.*.nc files
-STATIC = ['BBLG', 'BBLT', 'area', 'fire_type']
+STATIC = ['BBLG', 'BBLT', 'area', 'fire_type_in']
 
 # Dimension names in the output files
 DIM_PT = 'nbb_pt'
 DIM_K  = 'nkwildfire'
 STRLEN = 64                 # length of the xtime character dimension (StrLen)
 
-# fire_type placeholder for datasets that don't provide it (e.g. RAVE).
+# fire_type_in placeholder for datasets that don't provide it (e.g. RAVE).
 # Written to the static file so the model always finds the variable
 FIRE_TYPE_FILL = 99
 FIRE_TYPE_LONG = ('1:Agricultural 2:Prescribed 3:Wildfire 4:WUI 5:Industrial '
@@ -128,6 +128,7 @@ def readhour(dataset, date, files, treatmissing, vmap, cache):
       'next'    -> use the next available file
       'last'    -> use the last available file
       'average' -> average of the last and next available files
+      'zeros'   -> no fires this hour: all fire points get zero (lon, lat, area kept)
       None      -> stop with an error
     cache stores files already read (consecutive missing hours share neighbors)."""
 
@@ -142,7 +143,14 @@ def readhour(dataset, date, files, treatmissing, vmap, cache):
 
     if treatmissing is None:
         raise FileNotFoundError(f'No {dataset} file found for {date:%Y-%m-%d %H}Z '
-                                f'(use --treatmissing next|last|average to fill it)')
+                                f'(use --treatmissing next|last|average|zeros to fill it)')
+
+    if treatmissing == 'zeros':
+        # Empty hour (0 fires x nvar). stackfires puts it on the same nbb_pt as the
+        # other hours: lon, lat and area are filled in, everything else stays zero
+        warnings.warn(f'{dataset} file missing for {date:%Y-%m-%d %H}Z; '
+                      f'writing zeros for this hour')
+        return np.zeros((0, len(vmap)), dtype=np.float64)
 
     # Nearest available hours before and after the missing one
     tlast = max((t for t in files if t < date), default=None)
@@ -180,7 +188,7 @@ def averagefires(dlast, dnext, vmap):
     d3  = stackfires([dlast, dnext], vmap)     # fire x variable x 2
     avg = d3.mean(axis=2)                      # lon, lat, area are identical in both
 
-    # Integer (categorical) fields like fire_type can't be averaged:
+    # Integer (categorical) fields like fire_type_in can't be averaged:
     # take the last hour's value, or the next hour's where the fire wasn't burning before
     for v, dt in enumerate(vmap.datatype):
         if np.issubdtype(np.dtype(dt), np.integer):
@@ -312,6 +320,12 @@ def main(DATASET, DATE1, DATE2, PATHIN, PATHOUT, TABLE, TREATMISSING, DAYSSHIFT=
     for date in dates:
         data.append(readhour(DATASET, date, files, TREATMISSING, vmap, cache))
 
+    # No fire points at all in the period (e.g. every hour missing with 'zeros'):
+    # netCDF classic can't hold a zero-length nbb_pt dimension
+    if sum(d.shape[0] for d in data) == 0:
+        raise RuntimeError(f'No {DATASET} fire points between {DATE1} and {DATE2}; '
+                           f'nothing to write')
+
     # Same number of fires (unique lon/lat pairs) for every hour
     data3d = stackfires(data, vmap)
 
@@ -321,7 +335,7 @@ def main(DATASET, DATE1, DATE2, PATHIN, PATHOUT, TABLE, TREATMISSING, DAYSSHIFT=
                 for row in vmap.itertuples()}
 
     def cast(vals, dtype):
-        # Round before casting to integer types (e.g. fire_type) so 2.9999 -> 3, not 2
+        # Round before casting to integer types (e.g. fire_type_in) so 2.9999 -> 3, not 2
         if np.issubdtype(np.dtype(dtype), np.integer):
             vals = np.rint(vals)
         return vals.astype(dtype)
@@ -342,7 +356,7 @@ def main(DATASET, DATE1, DATE2, PATHIN, PATHOUT, TABLE, TREATMISSING, DAYSSHIFT=
         row  = rows[v]
         vals = data3d[:, v, 0]                 # lon, lat, area: identical for all hours
         if row.vnameout not in ('BBLG', 'BBLT', 'area'):
-            # Time-varying in data3d (e.g. fire_type is 0 when not burning):
+            # Time-varying in data3d (e.g. fire_type_in is 0 when not burning):
             # take the first non-zero value of each fire over the period
             series = data3d[:, v, :]
             first  = np.argmax(series != 0, axis=1)        # 0 if never non-zero
@@ -350,14 +364,14 @@ def main(DATASET, DATE1, DATE2, PATHIN, PATHOUT, TABLE, TREATMISSING, DAYSSHIFT=
         ds[row.vnameout] = xr.DataArray(cast(vals, row.datatype), dims=(DIM_PT,),
                                         attrs=attrs(row))
 
-    # Dataset without fire_type (e.g. RAVE): add a placeholder for future development
+    # Dataset without fire_type_in (e.g. RAVE): add a placeholder for future development
     enc_static = {k: encoding[k] for k in ds.data_vars}
-    if 'fire_type' not in ds:
-        ds['fire_type'] = xr.DataArray(np.full(data3d.shape[0], FIRE_TYPE_FILL, dtype='int16'),
+    if 'fire_type_in' not in ds:
+        ds['fire_type_in'] = xr.DataArray(np.full(data3d.shape[0], FIRE_TYPE_FILL, dtype='int16'),
                                        dims=(DIM_PT,),
                                        attrs={'long_name': FIRE_TYPE_LONG, 'units': '#',
                                               'note': f'placeholder, not available in {DATASET}'})
-        enc_static['fire_type'] = {'dtype': 'int16', '_FillValue': None}
+        enc_static['fire_type_in'] = {'dtype': 'int16', '_FillValue': None}
 
     ds.to_netcdf(fileout, mode='w', format='NETCDF3_CLASSIC', encoding=enc_static)
 
@@ -413,10 +427,11 @@ if __name__ == '__main__':
     parser.add_argument('--pathout', default='None')
     parser.add_argument('--table',   default=None,
                         help='csv mapping table (default: table_vectorize_<dataset>.csv)')
-    parser.add_argument('--treatmissing', type=str.lower, choices=['next', 'last', 'average'],
-                        default=None,
+    parser.add_argument('--treatmissing', type=str.lower,
+                        choices=['next', 'last', 'average', 'zeros'], default=None,
                         help='if an hourly file is missing, use the next or last available '
-                             'file, or the average of both (default: stop with an error)')
+                             'file, the average of both, or write zeros for that hour '
+                             '(default: stop with an error)')
     parser.add_argument('--days-shift', type=int, default=0,
                         help='shift the time label of the hourly output files by this many '
                              'days (e.g. 1 for persistence: data of 2025-09-05_17 is written '
