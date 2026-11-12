@@ -139,7 +139,7 @@ mv ${DATA}/smoke.init*.nc               ${UMBRELLA_PREP_CHEM_DATA}
 # a single smoke.init.nc file with the variables needed already calculated.
 # Below we are keeping the old treatment commented out just for reference.
 # For now let's just exit
-exit 1
+exit 0
 
 
 
